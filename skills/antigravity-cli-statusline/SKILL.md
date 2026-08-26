@@ -88,8 +88,9 @@ Windows 平台的 位元組順序記號（BOM）鐵則、`sh.exe` 越獄、`csc.
 {
   "questions": [
     {
-      "question": "選擇顯示語系 / Select Display Language / 表示言語の選択",
+      "question": "選擇顯示語系 / 选择显示语言 / Select Display Language / 表示言語の選択",
       "options": [
+        "简体中文 (zh-cn)",
         "繁體中文 (zh-tw)",
         "English (us)",
         "日本語 (jp)"
@@ -102,7 +103,7 @@ Windows 平台的 位元組順序記號（BOM）鐵則、`sh.exe` 越獄、`csc.
 }
 ```
 
-選擇完成後，**將所選語言代碼（`zh-tw` / `us` / `jp`）記錄為本次執行的鎖定語系**，並依「🌐 語言鎖定規則」於後續所有步驟使用該語系撰寫對話輸出。
+選擇完成後，**將所選語言代碼（`zh-cn` / `zh-tw` / `us` / `jp`）記錄為本次執行的鎖定語系**，並依「🌐 語言鎖定規則」於後續所有步驟使用該語系撰寫對話輸出。
 
 ### 步驟 2：Node.js 預檢 + 三層設定檔讀取
 
@@ -147,7 +148,7 @@ Windows 平台的 位元組順序記號（BOM）鐵則、`sh.exe` 越獄、`csc.
 ### 步驟 3：第二階段問卷（讀取 questions.json 與勾選指標）
 
 1. **讀取靜態問卷**：人工智慧（AI）代理必須優先讀取本外掛目錄底下的 `skills/antigravity-cli-statusline/resources/questions.json` 檔案。
-2. **根據步驟 1 的語言代碼（`zh-tw` / `us` / `jp`）**，從 `questions.json` 中讀取對應語系的問卷資訊，呼叫 `ask_question`。
+2. **根據步驟 1 的語言代碼（`zh-cn` / `zh-tw` / `us` / `jp`）**，從 `questions.json` 中讀取對應語系的問卷資訊，呼叫 `ask_question`。
 
 請動態將選定語系的 `options` 內容填入（問卷問題及摘要也請使用對應語系）：
    ```json
@@ -156,7 +157,7 @@ Windows 平台的 位元組順序記號（BOM）鐵則、`sh.exe` 越獄、`csc.
        {
          "question": "<請填入對應語系的提問，例如: 選擇要顯示的狀態列指標（下一步將進行排序）>",
          "options": [
-            // 從 resources/questions.json 讀取對應語系（如 zh-tw, us 或 jp）的 options 陣列並在此展開
+            // 從 resources/questions.json 讀取對應語系（如 zh-cn, zh-tw, us 或 jp）的 options 陣列並在此展開
          ],
          "is_multi_select": true
        }

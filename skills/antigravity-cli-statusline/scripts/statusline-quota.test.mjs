@@ -97,7 +97,7 @@ async function main() {
       const resR1 = await runStatusline(metaR1, homeR1);
       console.log("R1 Output:", JSON.stringify(resR1.stdout));
 
-      const expectedR1 = `${WHITE}Weekly Reset:${RESET} ${BLUE_BOLD}4d 11h${RESET}`;
+      const expectedR1 = `⏳ ${WHITE}Weekly Reset:${RESET} ${BLUE_BOLD}4d 11h${RESET}`;
       if (resR1.code === 0 && resR1.stdout.includes(expectedR1)) {
         console.log("✅ R1 passed!");
       } else {
@@ -141,7 +141,7 @@ async function main() {
       const resR2 = await runStatusline(metaR2, homeR2);
       console.log("R2 Output:", JSON.stringify(resR2.stdout));
 
-      const expectedR2 = `${WHITE}Weekly Available:${RESET} ${BLUE_BOLD}90%${RESET}`;
+      const expectedR2 = `📅 ${WHITE}Weekly Available:${RESET} \x1b[90m[\x1b[0m${BLUE_BOLD}██████\x1b[0m\x1b[90m]\x1b[0m ${BLUE_BOLD}90%${RESET}`;
       if (resR2.code === 0 && resR2.stdout.includes(expectedR2)) {
         console.log("✅ R2 passed!");
       } else {
@@ -185,7 +185,7 @@ async function main() {
       const resR3 = await runStatusline(metaR3, homeR3);
       console.log("R3 Output:", JSON.stringify(resR3.stdout));
 
-      const expectedR3 = `${WHITE}Weekly Available:${RESET} ${GREEN_BOLD}61%${RESET}`;
+      const expectedR3 = `📅 ${WHITE}Weekly Available:${RESET} \x1b[90m[\x1b[0m${GREEN_BOLD}█████\x1b[0m\x1b[90m░]\x1b[0m ${GREEN_BOLD}61%${RESET}`;
       if (resR3.code === 0 && resR3.stdout.includes(expectedR3)) {
         console.log("✅ R3 passed!");
       } else {
@@ -222,7 +222,7 @@ async function main() {
       const resR4 = await runStatusline(metaR4, homeR4);
       console.log("R4 Output:", JSON.stringify(resR4.stdout));
 
-      const expectedR4 = `${WHITE}Weekly Reset:${RESET} ${BLUE_BOLD}N/A${RESET}`;
+      const expectedR4 = `⏳ ${WHITE}Weekly Reset:${RESET} ${BLUE_BOLD}N/A${RESET}`;
       if (resR4.code === 0 && resR4.stdout.includes(expectedR4)) {
         console.log("✅ R4 passed!");
       } else {
@@ -231,6 +231,53 @@ async function main() {
       }
     } finally {
       rmSync(homeR4, { recursive: true, force: true });
+    }
+
+    // ----------------------------------------------------
+    // Test Case R5: Simplified Chinese zh-cn rendering
+    // Justification: Verifies zh-cn dictionary with Emoji & progress bar.
+    // ----------------------------------------------------
+    console.log("\n[Test R5] Verifying zh-cn Simplified Chinese dictionary & emoji...");
+    const mockCacheR5 = {
+      models: {
+        'gemini-1.5-pro': {
+          percentage: 85,
+          reset_time: '2026-07-05T03:22:46Z',
+          refreshes_in: '3h 20m'
+        }
+      },
+      updatedAt: Date.now()
+    };
+    const settingsR5 = {
+      ui: {
+        language: "zh-cn",
+        footer: {
+          items: ["model-name", "quota", "context-used"]
+        }
+      }
+    };
+    const metaR5 = {
+      model: { display_name: "Gemini 1.5 Pro" },
+      terminal_width: 160
+    };
+
+    const homeR5 = makeTempHome(mockCacheR5, settingsR5);
+    try {
+      const resR5 = await runStatusline(metaR5, homeR5);
+      console.log("R5 Output:", JSON.stringify(resR5.stdout));
+
+      const expectedR5_Model = `🤖 \x1b[38;2;71;150;227m\x1b[1mGemini 1.5 Pro\x1b[0m`;
+      const expectedR5_Quota = `⚡ ${WHITE}5h配额:${RESET}`;
+      const expectedR5_Context = `📚 ${WHITE}上下文:${RESET}`;
+
+      if (resR5.code === 0 && resR5.stdout.includes(expectedR5_Model) && resR5.stdout.includes(expectedR5_Quota) && resR5.stdout.includes(expectedR5_Context)) {
+        console.log("✅ R5 passed!");
+      } else {
+        console.error(`❌ R5 failed! Output did not contain expected zh-cn strings`);
+        testsPassed = false;
+      }
+    } finally {
+      rmSync(homeR5, { recursive: true, force: true });
     }
 
   } catch (err) {

@@ -1,4 +1,35 @@
 {
+  "zh-cn": {
+    "question": "选择要显示的状态栏指标（下一步将进行排序）",
+    "options": [
+      "当前使用的 AI 模型名称（model-name）",
+      "使用中的 Agent 角色（agent-profile）",
+      "Agent 当前状态（idle / thinking / working / tool_use / initializing）（agent-state）",
+      "沙盒模式状态（off / on (net) / on (no-net)）（sandbox-status）",
+      "当前对话已消耗的上下文（Context）用量比例（context-used）",
+      "当前会话消耗的精确 Token 数量（token-count）",
+      "本次会话 AI 累计产出的工件（Artifacts）/ 文件数（artifacts）",
+      "账号邮箱（account-email）",
+      "当前订阅方案等级（plan-tier）",
+      "账号 5 小时可用配额百分比（quota）",
+      "账号 5 小时配额重置时间倒计时（quota-reset-countdown）",
+      "账号每周可用配额百分比（quota-weekly）",
+      "账号每周配额重置时间倒计时（quota-weekly-countdown）",
+      "是否有等待确认的工具对话框（tool-confirmation）",
+      "队列中待处理的用户输入数（pending-input）",
+      "运行中的后台任务数（background-tasks）",
+      "活跃子代理数（subagents）",
+      "当前工作区项目短路径（project-path）",
+      "当前工作区项目完整路径（project-full-path）",
+      "版本控制类型（git / jj / fig）（vcs-type）",
+      "当前工作区项目的 Git 分支（git-branch）",
+      "工作区是否有未提交变更（dirty / clean）（vcs-dirty）",
+      "命令行（CLI）进程消耗的内存（RAM）用量（memory-usage）",
+      "Antigravity CLI 版本号（cli-version）",
+      "当前会话 ID（前 8 位，用于调试）（conversation-id）",
+      "当前运行模式（mode）"
+    ]
+  },
   "zh-tw": {
     "question": "選擇要顯示的狀態列指標（下一步將進行排序）",
     "options": [

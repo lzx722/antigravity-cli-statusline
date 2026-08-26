@@ -521,7 +521,9 @@ if (process.platform === 'win32') {
       }
 
       if (!fs.existsSync(destShPath)) {
-        if (lang === 'zh-tw') {
+        if (lang === 'zh-cn') {
+          console.warn('警告：sh.exe 编译失败，请检查权限是否充足，或尝试以管理员权限重新配置。');
+        } else if (lang === 'zh-tw') {
           console.warn('警告：sh.exe 編譯失敗，請檢查權限是否足夠，或嘗試以系統管理員權限重新設定。');
         } else if (lang === 'jp') {
           console.warn('警告：sh.exe のコンパイルに失敗しました。アクセス権限が十分であるか確認するか、管理者権限で再設定を試みてください。');
