@@ -64,16 +64,66 @@ function stripAnsi(str) {
   return str.replace(/[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g, '');
 }
 
+function isZeroWidth(code) {
+  if (!code || code < 32 || (code >= 0x7f && code < 0xa0)) return true;
+  if (code >= 0x0300 && code <= 0x036F) return true; // Combining diacritical marks
+  if (code >= 0x1AB0 && code <= 0x1AFF) return true;
+  if (code >= 0x1DC0 && code <= 0x1DFF) return true;
+  if (code >= 0x20D0 && code <= 0x20FF) return true;
+  if (code >= 0xFE20 && code <= 0xFE2F) return true;
+  if (code >= 0xFE00 && code <= 0xFE0F) return true; // Variation selectors (VS1-VS16)
+  if (code >= 0xE0100 && code <= 0xE01EF) return true;
+  if (code === 0x200B || code === 0x200C || code === 0x200D || code === 0xFEFF) return true;
+  if (code >= 0x1F3FB && code <= 0x1F3FF) return true; // Skin tone modifiers
+  return false;
+}
+
 function getDisplayWidth(str) {
   let width = 0;
   for (const char of str) {
     const code = char.codePointAt(0);
-    if (!code || code < 32 || (code >= 0x7f && code < 0xa0)) continue;
-    if (code <= 0x7F) {
+    if (isZeroWidth(code)) continue;
+
+    // ASCII printable
+    if (code >= 0x20 && code <= 0x7E) {
       width += 1;
-    } else {
-      width += 2;
+      continue;
     }
+    // Box Drawing (│), Block Elements (█, ░), Geometric Shapes, Dingbats (✓, ✗)
+    if (code >= 0x2500 && code <= 0x259F) {
+      width += 1;
+      continue;
+    }
+    if (code === 0x2713 || code === 0x2717) {
+      width += 1;
+      continue;
+    }
+    // Halfwidth Katakana / punctuation
+    if (code >= 0xFF61 && code <= 0xFFDC) {
+      width += 1;
+      continue;
+    }
+
+    // Wide characters (CJK, Emojis, Fullwidth)
+    if (
+      (code >= 0x1100 && code <= 0x115F) ||
+      (code >= 0x2E80 && code <= 0xA4CF) ||
+      (code >= 0xAC00 && code <= 0xD7A3) ||
+      (code >= 0xF900 && code <= 0xFAFF) ||
+      (code >= 0xFE30 && code <= 0xFE6F) ||
+      (code >= 0xFF00 && code <= 0xFF60) ||
+      (code >= 0xFFE0 && code <= 0xFFE6) ||
+      (code >= 0x20000 && code <= 0x3FFFF) ||
+      (code >= 0x2300 && code <= 0x23FF) ||
+      (code >= 0x2600 && code <= 0x26FF) ||
+      (code >= 0x2B00 && code <= 0x2BFF) ||
+      (code >= 0x1F000 && code <= 0x1FAFF)
+    ) {
+      width += 2;
+      continue;
+    }
+
+    width += 1;
   }
   return width;
 }
@@ -948,7 +998,7 @@ async function main() {
     try { if (stdinStr.trim()) meta = JSON.parse(stdinStr.replace(/^\uFEFF/, '')); } catch (e) {}
 
     const settings = await getSettingsAsync(meta);
-    const termWidth = Math.max(40, (meta?.terminal_width || process.stdout.columns || 80) - 15);
+    const termWidth = Math.max(40, (meta?.terminal_width || process.stdout.columns || 80) - 1);
     
     let fallbackModel = meta?.model?.display_name || meta?.model?.id || settings?.model || 'Gemini 3.7 Flash (High)';
     
