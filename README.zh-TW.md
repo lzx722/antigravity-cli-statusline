@@ -4,9 +4,18 @@
 [![授權條款: MIT](https://img.shields.io/badge/授權條款-MIT-yellow.svg)](LICENSE)
 [![平台](https://img.shields.io/badge/平台-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg)]()
 
-繁體中文 | [English](README.md)
+[简体中文](README.md) | **繁體中文** | [English](README.en.md)
 
-一個多語系、跨平台的技能，用來客製化 Antigravity CLI 狀態列（Footer）——精準勾選想顯示的指標、自由排序，並內建智慧型換行。
+一個多語系、跨平台的技能，用來客製化 Antigravity CLI 狀態列（Footer）——精準勾選想顯示的指標、自由排序、動態彩色進度條與 Emoji 圖示支援，並內建智慧型換行。
+
+> **Fork 說明與改造特性**：
+> 本專案為 [AndyAWD/antigravity-cli-statusline](https://github.com/AndyAWD/antigravity-cli-statusline) 之體驗增強分支：
+> 1. 🎨 **免裝字體的通用 Emoji 圖示**：各指標搭配直觀 Emoji（🤖、⚡、⏳、📚、🌿、📝、💻 等），無需安裝 Nerd Fonts，任何終端機皆不亂碼。
+> 2. 📊 **動態彩色進度條**：為 5 小時額度、每週額度及脈絡（Context）用量加入視覺化進度條 `[█████░] 85%`，色彩即時聯動。
+> 3. 🌐 **原生簡體中文（`zh-cn`）與繁體中文（`zh-tw`）雙支援**：完整覆蓋繁簡用語習慣。
+> 4. 📐 **精準終端機寬度自適應折行**：針對 Unicode 寬字元與 Emoji 精確計算寬度，排版更美觀。
+
+---
 
 ## 實際畫面
 
@@ -22,6 +31,8 @@
 | :---: | :---: | :---: |
 | ![繁體中文](docs/images/agy-cli-statusline-macos-zhtw.png) | ![English](docs/images/agy-cli-statusline-macos-us.png) | ![日本語](docs/images/agy-cli-statusline-macos-jp.png) |
 
+---
+
 ## 安裝
 
 ### 環境需求
@@ -32,7 +43,7 @@
 ### 步驟 A：安裝外掛
 
 ```bash
-agy plugin install https://github.com/andyawd/antigravity-cli-statusline
+agy plugin install https://github.com/lzx722/antigravity-cli-statusline
 ```
 
 > CLI 會把 bundle stage 至 `~/.gemini/antigravity-cli/plugins/antigravity-cli-statusline/`。
@@ -45,7 +56,9 @@ agy plugin install https://github.com/andyawd/antigravity-cli-statusline
 /antigravity-cli-statusline
 ```
 
-技能會引導你選擇語系、勾選指標、排序，並把渲染腳本部署到位、寫入三層 `settings.json`。狀態列**熱更新立即生效**，無需重啟 CLI。
+技能會引導你選擇語系（`zh-cn` / `zh-tw` / `us` / `jp`）、勾選指標、排序，並把渲染腳本部署到位、寫入三層 `settings.json`。狀態列**熱更新立即生效**，無需重啟 CLI。
+
+---
 
 ## 指標、排序與換行
 
@@ -58,11 +71,11 @@ agy plugin install https://github.com/andyawd/antigravity-cli-statusline
 - **目前 CLI 運行模式（`mode`）**：目前作用中的運行模式（`default / code-only / plan / interactive / accept-edits`）
 
 **額度與 Token**
-- **帳號真實 API 可用額度（`quota`）**：百分比，搭配四階配色
-- **API 重置時間倒數（`quota-reset-countdown`）**：距離下次額度重置剩餘時間
-- **帳號每週 API 可用額度（`quota-weekly`）**：每週剩餘百分比，搭配四階配色
+- **帳號 5 小時 API 可用額度與進度條（`quota`）**：百分比，搭配四階配色與進度條
+- **5 小時 API 重置時間倒數（`quota-reset-countdown`）**：距離下次額度重置剩餘時間
+- **帳號每週 API 可用額度與進度條（`quota-weekly`）**：每週剩餘百分比，搭配四階配色與進度條
 - **每週 API 重置時間倒數（`quota-weekly-countdown`）**：距離每週額度重置剩餘時間
-- **目前對話已消耗的 Context 比例（`context-used`）**：百分比
+- **目前對話已消耗的脈絡比例與進度條（`context-used`）**：百分比與進度條
 - **目前 Session 消耗的精確 Token 數量（`token-count`）**
 - **本次對話 AI 累計產出的成品 / 檔案數（`artifacts`）**
 - **目前訂閱方案等級（`plan-tier`）**
@@ -86,6 +99,8 @@ agy plugin install https://github.com/andyawd/antigravity-cli-statusline
 - **目前對話 ID 前 8 碼（`conversation-id`）**：用於除錯
 - **沙盒模式狀態（`sandbox-status`）**：`off / on (net) / on (no-net)`
 - **帳號電子郵件（`account-email`）**
+
+---
 
 ### 排序
 
@@ -117,13 +132,31 @@ agy plugin install https://github.com/andyawd/antigravity-cli-statusline
 
 採用 24-bit truecolor 四階柔和配色（藍 → 綠 → 黃 → 粉紅），依 API 額度或 Context 消耗比例變色；不同 AI 模型家族也會套用專屬的品牌識別色。
 
-## 貢獻指南
+---
 
-非常歡迎大家貢獻——包括新增指標、跨平台修正、以及透過 AI 一鍵新增其他語言翻譯。詳見 **[CONTRIBUTING.md](CONTRIBUTING.md)**。
+## 卸載與重新安裝
+
+若欲卸載或重新安裝本外掛，請於終端機執行：
+
+```bash
+# 1. 卸載舊版外掛
+agy plugin uninstall antigravity-cli-statusline
+
+# 2. 重新安裝本外掛
+agy plugin install https://github.com/lzx722/antigravity-cli-statusline --force
+
+# 3. 進入 agy CLI 重新設定
+/antigravity-cli-statusline
+```
+
+---
 
 ## 鳴謝
 
-特別感謝 [60ke/antigravity-statusline](https://github.com/60ke/antigravity-statusline) 專案。本專案的額度監控靈感正是來自於此，由於該原專案主要是使用 Python 撰寫，在 Windows 和 macOS 跨平台執行上可能遇到環境設定的困難，因此我使用 JavaScript (Node.js) 進行改寫，以實現真正的跨平台免安裝依賴執行。
+- 特別感謝 [AndyAWD/antigravity-cli-statusline](https://github.com/AndyAWD/antigravity-cli-statusline) 專案提供穩健的跨平台 Node.js 架構與多層設定檔管理機制。
+- 特別感謝 [60ke/antigravity-statusline](https://github.com/60ke/antigravity-statusline) 專案為狀態列額度監控帶來的最初靈感。
+
+---
 
 ## 授權條款
 
