@@ -49,40 +49,40 @@ The skill walks you through language selection (`zh-cn` / `zh-tw` / `us` / `jp`)
 ## Available Indicators
 
 **AI Model & Agent**
-- **Current AI model name (`model-name`)**
-- **Active agent profile (`agent-profile`)**
-- **Agent state (`agent-state`)**
-- **Current CLI run mode (`mode`)**
+- **Current AI model name (`model-name`)**: e.g. `🤖 Gemini 3.7 Flash (High)`
+- **Active agent profile (`agent-profile`)**: e.g. `🎭 Default`
+- **Agent state (`agent-state`)**: e.g. `⚙️ idle` / `⚙️ thinking` / `⚙️ working` / `⚙️ tool use`
+- **Current CLI run mode (`mode`)**: e.g. `🎯 Default Mode`
 
 **Quota & Tokens**
-- **Account API available quota with progress bar (`quota`)**
-- **API reset countdown (`quota-reset-countdown`)**
-- **Weekly API quota with progress bar (`quota-weekly`)**
-- **Weekly API reset countdown (`quota-weekly-countdown`)**
-- **Context window usage with progress bar (`context-used`)**
-- **Session token count (`token-count`)**
-- **Cumulative AI artifacts (`artifacts`)**
-- **Account plan tier (`plan-tier`)**
+- **Account API available quota with progress bar (`quota`)**: e.g. `⚡ [████░░] 62%`
+- **API quota & reset countdown (combined) (`quota-reset-countdown`)**: e.g. `⚡ [████░░] 62% (⏳1h 49m)`
+- **Weekly API quota with progress bar (`quota-weekly`)**: e.g. `📅 [███░░░] 57%`
+- **Weekly API quota & reset countdown (combined) (`quota-weekly-countdown`)**: e.g. `📅 [███░░░] 57% (⏳2d 19h)`
+- **Context window usage with progress bar (`context-used`)**: e.g. `📚 [░░░░░░] 0.0%`
+- **Session token count (`token-count`)**: e.g. `🪙 0 / 1.0M`
+- **Cumulative AI artifacts (`artifacts`)**: e.g. `📦 0 artifacts`
+- **Account plan tier (`plan-tier`)**: e.g. `👑 Google AI Pro`
 
 **Interactive State**
-- **Pending tool confirmation (`tool-confirmation`)**
-- **Pending user input queue (`pending-input`)**
-- **Running background tasks (`background-tasks`)**
-- **Active subagents (`subagents`)**
+- **Pending tool confirmation (`tool-confirmation`)**: e.g. `🔔 ready` / `🔔 waiting`
+- **Pending user input queue (`pending-input`)**: e.g. `📥 0 queued`
+- **Running background tasks (`background-tasks`)**: e.g. `🔄 0 bg tasks`
+- **Active subagents (`subagents`)**: e.g. `👥 0 subagents`
 
 **Project & VCS**
-- **Project short path (`project-path`)**
-- **Project full path (`project-full-path`)**
-- **VCS type (`vcs-type`)**
-- **Current Git branch (`git-branch`)**
-- **Working tree status (`vcs-dirty`)**
+- **Project short path (`project-path`)**: e.g. `📁 my-awesome-project`
+- **Project full path (`project-full-path`)**: e.g. `📁 /path/to/my-awesome-project`
+- **VCS type (`vcs-type`)**: e.g. `🗂️ git`
+- **Current Git branch (`git-branch`)**: e.g. `🌿 main`
+- **Working tree status (`vcs-dirty`)**: e.g. `📝 ✗ dirty` / `📝 ✓ clean`
 
 **System & Account**
-- **CLI RAM usage (`memory-usage`)**
-- **Antigravity CLI version (`cli-version`)**
-- **Conversation ID (`conversation-id`)**
-- **Sandbox mode (`sandbox-status`)**
-- **Account email (`account-email`)**
+- **CLI RAM usage (`memory-usage`)**: e.g. `💻 266MB`
+- **Antigravity CLI version (`cli-version`)**: e.g. `🏷️ v1.7.0`
+- **Conversation ID (`conversation-id`)**: e.g. `💬 12e57f8e`
+- **Sandbox mode (`sandbox-status`)**: e.g. `🛡️ sandbox off` / `🛡️ sandbox on (net)`
+- **Account email (`account-email`)**: e.g. `👤 user@example.com`
 
 ---
 

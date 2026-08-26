@@ -2,7 +2,7 @@
   "zh-cn": {
     "question": "选择要显示的状态栏指标（下一步将进行排序）",
     "options": [
-      "当前使用的 AI 模型名称（model-name）",
+      "(Recommended) 当前使用的 AI 模型名称（model-name）",
       "使用中的 Agent 角色（agent-profile）",
       "Agent 当前状态（idle / thinking / working / tool_use / initializing）（agent-state）",
       "沙盒模式状态（off / on (net) / on (no-net)）（sandbox-status）",
@@ -12,9 +12,9 @@
       "账号邮箱（account-email）",
       "当前订阅方案等级（plan-tier）",
       "账号 5 小时可用配额百分比（quota）",
-      "账号 5 小时配额重置时间倒计时（quota-reset-countdown）",
+      "账号 5 小时配额与重置倒计时（合并）（quota-reset-countdown）",
       "账号每周可用配额百分比（quota-weekly）",
-      "账号每周配额重置时间倒计时（quota-weekly-countdown）",
+      "账号每周配额与重置倒计时（合并）（quota-weekly-countdown）",
       "是否有等待确认的工具对话框（tool-confirmation）",
       "队列中待处理的用户输入数（pending-input）",
       "运行中的后台任务数（background-tasks）",
@@ -33,7 +33,7 @@
   "zh-tw": {
     "question": "選擇要顯示的狀態列指標（下一步將進行排序）",
     "options": [
-      "目前使用的人工智慧（AI）模型名稱（model-name）",
+      "(Recommended) 目前使用的人工智慧（AI）模型名稱（model-name）",
       "使用中代理（agent-profile）",
       "代理當前狀態（Agent State）（agent-state）",
       "沙盒模式狀態（off / on (net) / on (no-net)）（sandbox-status）",
@@ -43,9 +43,9 @@
       "帳號電子郵件（Account Email）（account-email）",
       "目前訂閱方案等級（Plan Tier）（plan-tier）",
       "帳號五小時可用額度百分比（quota）",
-      "帳號五小時額度重置時間倒數（quota-reset-countdown）",
+      "帳號五小時額度與重置倒數（合併）（quota-reset-countdown）",
       "帳號每週可用額度百分比（quota-weekly）",
-      "帳號每週額度重置時間倒數（quota-weekly-countdown）",
+      "帳號每週額度與重置倒數（合併）（quota-weekly-countdown）",
       "是否有等你回應的工具確認對話方塊（Dialog Box）（tool-confirmation）",
       "佇列中待處理的使用者輸入數（pending-input）",
       "進行中的背景任務數（background-tasks）",
@@ -64,7 +64,7 @@
   "us": {
     "question": "Select statusline metrics to display (sorting will be done in the next step)",
     "options": [
-      "Current AI model name (model-name)",
+      "(Recommended) Current AI model name (model-name)",
       "Active agent profile (agent-profile)",
       "Agent state (idle / thinking / working / tool_use / initializing) (agent-state)",
       "Sandbox status (off / on (net) / on (no-net)) (sandbox-status)",
@@ -74,9 +74,9 @@
       "Account email (account-email)",
       "Current subscription plan tier (plan-tier)",
       "Hourly available quota remaining (quota)",
-      "Hourly quota reset countdown (quota-reset-countdown)",
+      "Hourly quota & reset countdown (combined) (quota-reset-countdown)",
       "Weekly available quota remaining (quota-weekly)",
-      "Weekly quota reset countdown (quota-weekly-countdown)",
+      "Weekly quota & reset countdown (combined) (quota-weekly-countdown)",
       "Pending tool confirmation dialog (tool-confirmation)",
       "Pending user inputs in queue (pending-input)",
       "Running background tasks (background-tasks)",
@@ -95,7 +95,7 @@
   "jp": {
     "question": "表示するステータスラインの指標を選択してください（並べ替えは次のステップで行います）",
     "options": [
-      "現在のAIモデル名（model-name）",
+      "(Recommended) 現在のAIモデル名（model-name）",
       "使用中のエージェント（agent-profile）",
       "エージェント状態（idle / thinking / working / tool_use / initializing）（agent-state）",
       "サンドボックス状態（off / on (net) / on (no-net)）（sandbox-status）",
@@ -105,9 +105,9 @@
       "アカウントのメールアドレス（account-email）",
       "現在のサブスクリプションプラン（plan-tier）",
       "時間別利用可能残量（quota）",
-      "時間別残量リセットカウントダウン（quota-reset-countdown）",
+      "時間別残量とリセットカウントダウン（結合）（quota-reset-countdown）",
       "週間利用可能残量（quota-weekly）",
-      "週間残量リセットカウントダウン（quota-weekly-countdown）",
+      "週間残量とリセットカウントダウン（結合）（quota-weekly-countdown）",
       "返答待ちのツール確認ダイアログ（tool-confirmation）",
       "キュー内の待機中ユーザー入力数（pending-input）",
       "実行中のバックグラウンドタスク数（background-tasks）",

@@ -20,8 +20,8 @@
 ## 效果预览
 
 ```text
-🤖 Gemini 3.7 Flash (High) │ ⚡ 5h配额: [█████░] 75% │ ⏳ 5h重置: 2h 44m │ 📚 上下文: [░░░░░░] 0.0% │ 🌿 Git: main
-📝 工作区: ✗ 有变更 │ 💻 内存: 42MB
+🤖 Gemini 3.7 Flash (High) │ ⚡ [████░░] 62%（⏳1h 49m） │ 📅 [███░░░] 57%（⏳2d 19h） │ 📚 [░░░░░░] 0.0%
+🪙 0 / 1.0M │ 🌿 main │ 📝 ✗ 工作区有变更 │ 💻 266MB │ 👑 Google AI Pro
 ```
 
 ---
@@ -69,40 +69,40 @@ agy plugin install https://github.com/lzx722/antigravity-cli-statusline
 ## 支持展示的指标清单
 
 **AI 模型与 Agent**
-- **当前 AI 模型名称 (`model-name`)**
-- **使用中的 Agent 角色 (`agent-profile`)**
-- **Agent 当前运行状态 (`agent-state`)**：`idle / thinking / working / tool_use / initializing`
-- **当前 CLI 运行模式 (`mode`)**：`default / code-only / plan / interactive / accept-edits`
+- **当前 AI 模型名称 (`model-name`)**：如 `🤖 Gemini 3.7 Flash (High)`
+- **使用中的 Agent 角色 (`agent-profile`)**：如 `🎭 默认角色`
+- **Agent 当前运行状态 (`agent-state`)**：如 `⚙️ 空闲` / `⚙️ 思考中` / `⚙️ 工作中` / `⚙️ 工具调用中`
+- **当前 CLI 运行模式 (`mode`)**：如 `🎯 Default 模式`
 
 **配额与 Token**
-- **5 小时 API 可用配额百分比与进度条 (`quota`)**
-- **5 小时配额重置时间倒计时 (`quota-reset-countdown`)**
-- **每周 API 可用配额百分比与进度条 (`quota-weekly`)**
-- **每周配额重置时间倒计时 (`quota-weekly-countdown`)**
-- **会话上下文（Context）用量比例与进度条 (`context-used`)**
-- **当前会话精确 Token 消耗 (`token-count`)**
-- **本次会话 AI 累计产出的工件/文件数 (`artifacts`)**
-- **账号订阅方案等级 (`plan-tier`)**
+- **5 小时 API 可用配额与进度条 (`quota`)**：如 `⚡ [████░░] 62%`
+- **5 小时配额与重置倒计时合并 (`quota-reset-countdown`)**：如 `⚡ [████░░] 62%（⏳1h 49m）`
+- **每周 API 可用配额与进度条 (`quota-weekly`)**：如 `📅 [███░░░] 57%`
+- **每周配额与重置倒计时合并 (`quota-weekly-countdown`)**：如 `📅 [███░░░] 57%（⏳2d 19h）`
+- **会话上下文（Context）用量比例与进度条 (`context-used`)**：如 `📚 [░░░░░░] 0.0%`
+- **当前会话精确 Token 消耗 (`token-count`)**：如 `🪙 0 / 1.0M`
+- **本次会话 AI 累计产出的工件/文件数 (`artifacts`)**：如 `📦 0 工件`
+- **账号订阅方案等级 (`plan-tier`)**：如 `👑 Google AI Pro`
 
 **交互与任务**
-- **是否有等待确认的工具对话框 (`tool-confirmation`)**
-- **队列中待处理的用户输入数 (`pending-input`)**
-- **运行中的后台任务数 (`background-tasks`)**
-- **活跃子代理数 (`subagents`)**
+- **是否有等待确认的工具对话框 (`tool-confirmation`)**：如 `🔔 已就绪` / `🔔 等待确认`
+- **队列中待处理的用户输入数 (`pending-input`)**：如 `📥 0 队列`
+- **运行中的后台任务数 (`background-tasks`)**：如 `🔄 0 后台`
+- **活跃子代理数 (`subagents`)**：如 `👥 0 子代理`
 
 **项目与版本控制 (VCS)**
-- **当前工作区项目短路径 (`project-path`)**
-- **当前工作区项目完整绝对路径 (`project-full-path`)**
-- **版本控制类型 (`vcs-type`)**：`git / jj / fig`
-- **当前工作区的 Git 分支 (`git-branch`)**
-- **工作区是否有未提交变更 (`vcs-dirty`)**：`dirty / clean`
+- **当前工作区项目短路径 (`project-path`)**：如 `📁 my-awesome-project`
+- **当前工作区项目完整绝对路径 (`project-full-path`)**：如 `📁 /path/to/my-awesome-project`
+- **版本控制类型 (`vcs-type`)**：如 `🗂️ git`
+- **当前工作区的 Git 分支 (`git-branch`)**：如 `🌿 main`
+- **工作区是否有未提交变更 (`vcs-dirty`)**：如 `📝 ✗ 工作区有变更` / `📝 ✓ 工作区干净`
 
 **系统与账号**
-- **CLI 进程消耗的内存用量 (`memory-usage`)**
-- **Antigravity CLI 版本号 (`cli-version`)**
-- **当前会话 ID (`conversation-id`)**：前 8 位短码
-- **沙盒模式状态 (`sandbox-status`)**：`off / on (net) / on (no-net)`
-- **账号邮箱 (`account-email`)**
+- **CLI 进程消耗的内存用量 (`memory-usage`)**：如 `💻 266MB`
+- **Antigravity CLI 版本号 (`cli-version`)**：如 `🏷️ v1.7.0`
+- **当前会话 ID (`conversation-id`)**：如 `💬 12e57f8e`
+- **沙盒模式状态 (`sandbox-status`)**：如 `🛡️ 沙盒关闭` / `🛡️ 沙盒开启 (联网)`
+- **账号邮箱 (`account-email`)**：如 `👤 user@example.com`
 
 ---
 

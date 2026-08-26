@@ -65,40 +65,40 @@ agy plugin install https://github.com/lzx722/antigravity-cli-statusline
 ### 可顯示的指標
 
 **AI 模型與代理**
-- **目前使用的 AI 模型名稱（`model-name`）**：即時顯示對話正在使用的模型
-- **使用中代理（`agent-profile`）**：目前載入的 Agent Profile 名稱
-- **代理當前狀態（`agent-state`）**：`idle / thinking / working / tool_use / initializing`
-- **目前 CLI 運行模式（`mode`）**：目前作用中的運行模式（`default / code-only / plan / interactive / accept-edits`）
+- **目前使用的 AI 模型名稱（`model-name`）**：如 `🤖 Gemini 3.7 Flash (High)`
+- **使用中代理（`agent-profile`）**：如 `🎭 預設角色`
+- **代理當前狀態（`agent-state`）**：如 `⚙️ 閒置` / `⚙️ 思考中` / `⚙️ 工作中` / `⚙️ 工具呼叫中`
+- **目前 CLI 運行模式（`mode`）**：如 `🎯 Default 模式`
 
 **額度與 Token**
-- **帳號 5 小時 API 可用額度與進度條（`quota`）**：百分比，搭配四階配色與進度條
-- **5 小時 API 重置時間倒數（`quota-reset-countdown`）**：距離下次額度重置剩餘時間
-- **帳號每週 API 可用額度與進度條（`quota-weekly`）**：每週剩餘百分比，搭配四階配色與進度條
-- **每週 API 重置時間倒數（`quota-weekly-countdown`）**：距離每週額度重置剩餘時間
-- **目前對話已消耗的脈絡比例與進度條（`context-used`）**：百分比與進度條
-- **目前 Session 消耗的精確 Token 數量（`token-count`）**
-- **本次對話 AI 累計產出的成品 / 檔案數（`artifacts`）**
-- **目前訂閱方案等級（`plan-tier`）**
+- **帳號 5 小時 API 可用額度與進度條（`quota`）**：如 `⚡ [████░░] 62%`
+- **5 小時 API 額度與重置倒數合併（`quota-reset-countdown`）**：如 `⚡ [████░░] 62%（⏳1h 49m）`
+- **帳號每週 API 可用額度與進度條（`quota-weekly`）**：如 `📅 [███░░░] 57%`
+- **每週 API 額度與重置倒數合併（`quota-weekly-countdown`）**：如 `📅 [███░░░] 57%（⏳2d 19h）`
+- **目前對話已消耗的脈絡比例與進度條（`context-used`）**：如 `📚 [░░░░░░] 0.0%`
+- **目前 Session 消耗的精確 Token 數量（`token-count`）**：如 `🪙 0 / 1.0M`
+- **本次對話 AI 累計產出的工件數（`artifacts`）**：如 `📦 0 工件數`
+- **目前訂閱方案等級（`plan-tier`）**：如 `👑 Google AI Pro`
 
 **互動狀態**
-- **等你回應的工具確認對話方塊（Dialog Box）（`tool-confirmation`）**
-- **佇列中待處理的使用者輸入數（`pending-input`）**
-- **進行中的背景任務數（`background-tasks`）**
-- **活躍子代理數（`subagents`）**
+- **等你回應的工具確認對話方塊（Dialog Box）（`tool-confirmation`）**：如 `🔔 都好了` / `🔔 在等你`
+- **佇列中待處理的使用者輸入數（`pending-input`）**：如 `📥 0 待處理輸入`
+- **進行中的背景任務數（`background-tasks`）**：如 `🔄 0 背景任務`
+- **活躍子代理數（`subagents`）**：如 `👥 0 子代理`
 
 **專案與版控**
-- **目前工作區專案短路徑（`project-path`）**
-- **目前工作區專案完整路徑（`project-full-path`）**
-- **版本控制類型（`vcs-type`）**：`git / jj / fig`
-- **目前工作區的 Git 分支（`git-branch`）**
-- **工作區是否有未提交變更（`vcs-dirty`）**：`dirty / clean`
+- **目前工作區專案短路徑（`project-path`）**：如 `📁 my-awesome-project`
+- **目前工作區專案完整路徑（`project-full-path`）**：如 `📁 /path/to/my-awesome-project`
+- **版本控制類型（`vcs-type`）**：如 `🗂️ git`
+- **目前工作區的 Git 分支（`git-branch`）**：如 `🌿 main`
+- **工作區是否有未提交變更（`vcs-dirty`）**：如 `📝 ✗ 工作區有變更` / `📝 ✓ 工作區乾淨`
 
 **系統與帳號**
-- **CLI 行程所消耗的 RAM 記憶體量（`memory-usage`）**
-- **Antigravity CLI 版本號（`cli-version`）**
-- **目前對話 ID 前 8 碼（`conversation-id`）**：用於除錯
-- **沙盒模式狀態（`sandbox-status`）**：`off / on (net) / on (no-net)`
-- **帳號電子郵件（`account-email`）**
+- **CLI 行程所消耗的 RAM 記憶體量（`memory-usage`）**：如 `💻 266MB`
+- **Antigravity CLI 版本號（`cli-version`）**：如 `🏷️ v1.7.0`
+- **目前對話 ID 前 8 碼（`conversation-id`）**：如 `💬 12e57f8e`
+- **沙盒模式狀態（`sandbox-status`）**：如 `🛡️ 沙盒關閉` / `🛡️ 沙盒啟用 (聯網)`
+- **帳號電子郵件（`account-email`）**：如 `👤 user@example.com`
 
 ---
 

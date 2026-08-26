@@ -134,10 +134,10 @@ async function main() {
     } else {
       console.log(`狀態列輸出: ${res0.stdout.trim()}`);
       
-      const regexPending = new RegExp("待處理輸入.*?" + escapeRegex(RED) + escapeRegex(BOLD) + "11" + escapeRegex(RESET));
-      const regexBg = new RegExp("背景任務.*?" + escapeRegex(RED) + escapeRegex(BOLD) + "12" + escapeRegex(RESET));
-      const regexSub = new RegExp("子代理.*?" + escapeRegex(RED) + escapeRegex(BOLD) + "13" + escapeRegex(RESET));
-      const regexArt = new RegExp("工件數.*?" + escapeRegex(BOLD) + "14" + escapeRegex(RESET));
+      const regexPending = new RegExp(escapeRegex(RED) + escapeRegex(BOLD) + "11" + escapeRegex(RESET) + ".*?待處理輸入");
+      const regexBg = new RegExp(escapeRegex(RED) + escapeRegex(BOLD) + "12" + escapeRegex(RESET) + ".*?背景任務");
+      const regexSub = new RegExp(escapeRegex(RED) + escapeRegex(BOLD) + "13" + escapeRegex(RESET) + ".*?子代理");
+      const regexArt = new RegExp(escapeRegex(BOLD) + "14" + escapeRegex(RESET) + ".*?工件數");
 
       const p1 = regexPending.test(res0.stdout);
       const p2 = regexBg.test(res0.stdout);
@@ -186,10 +186,10 @@ async function main() {
       console.log(`狀態列輸出: ${res1.stdout.trim()}`);
       
       // 驗證 2 (GREEN), 3 (YELLOW), 4 (YELLOW), 5 (BOLD)
-      const regexPending = new RegExp("待處理輸入.*?" + escapeRegex(GREEN) + escapeRegex(BOLD) + "2" + escapeRegex(RESET));
-      const regexBg = new RegExp("背景任務.*?" + escapeRegex(YELLOW) + escapeRegex(BOLD) + "3" + escapeRegex(RESET));
-      const regexSub = new RegExp("子代理.*?" + escapeRegex(YELLOW) + escapeRegex(BOLD) + "4" + escapeRegex(RESET));
-      const regexArt = new RegExp("工件數.*?" + escapeRegex(BOLD) + "5" + escapeRegex(RESET));
+      const regexPending = new RegExp(escapeRegex(GREEN) + escapeRegex(BOLD) + "2" + escapeRegex(RESET) + ".*?待處理輸入");
+      const regexBg = new RegExp(escapeRegex(YELLOW) + escapeRegex(BOLD) + "3" + escapeRegex(RESET) + ".*?背景任務");
+      const regexSub = new RegExp(escapeRegex(YELLOW) + escapeRegex(BOLD) + "4" + escapeRegex(RESET) + ".*?子代理");
+      const regexArt = new RegExp(escapeRegex(BOLD) + "5" + escapeRegex(RESET) + ".*?工件數");
 
       const p1 = regexPending.test(res1.stdout);
       const p2 = regexBg.test(res1.stdout);
@@ -301,10 +301,10 @@ async function main() {
       console.log(`狀態列輸出: ${res2.stdout.trim()}`);
       
       // 驗證 8 (RED), 6 (RED), expectedSubagents (subagentsColor), 7 (BOLD)
-      const regexPending = new RegExp("待處理輸入.*?" + escapeRegex(RED) + escapeRegex(BOLD) + "8" + escapeRegex(RESET));
-      const regexBg = new RegExp("背景任務.*?" + escapeRegex(RED) + escapeRegex(BOLD) + "6" + escapeRegex(RESET));
-      const regexSub = new RegExp("子代理.*?" + escapeRegex(subagentsColor) + escapeRegex(BOLD) + expectedSubagents + escapeRegex(RESET));
-      const regexArt = new RegExp("工件數.*?" + escapeRegex(BOLD) + "7" + escapeRegex(RESET));
+      const regexPending = new RegExp(escapeRegex(RED) + escapeRegex(BOLD) + "8" + escapeRegex(RESET) + ".*?待處理輸入");
+      const regexBg = new RegExp(escapeRegex(RED) + escapeRegex(BOLD) + "6" + escapeRegex(RESET) + ".*?背景任務");
+      const regexSub = new RegExp(escapeRegex(subagentsColor) + escapeRegex(BOLD) + expectedSubagents + escapeRegex(RESET) + ".*?子代理");
+      const regexArt = new RegExp(escapeRegex(BOLD) + "7" + escapeRegex(RESET) + ".*?工件數");
 
       const p1 = regexPending.test(res2.stdout);
       const p2 = regexBg.test(res2.stdout);
@@ -358,10 +358,10 @@ async function main() {
       console.log(`狀態列輸出: ${res3.stdout.trim()}`);
 
       // 驗證輸出是否為著色的 0 (0 值對應配色為 BLUE)
-      const regexPending3 = new RegExp("待處理輸入.*?" + escapeRegex(BLUE) + escapeRegex(BOLD) + "0" + escapeRegex(RESET));
-      const regexBg3 = new RegExp("背景任務.*?" + escapeRegex(BLUE) + escapeRegex(BOLD) + "0" + escapeRegex(RESET));
-      const regexSub3 = new RegExp("子代理.*?" + escapeRegex(BLUE) + escapeRegex(BOLD) + "0" + escapeRegex(RESET));
-      const regexArt3 = new RegExp("工件數.*?" + escapeRegex(BOLD) + "0" + escapeRegex(RESET));
+      const regexPending3 = new RegExp(escapeRegex(BLUE) + escapeRegex(BOLD) + "0" + escapeRegex(RESET) + ".*?待處理輸入");
+      const regexBg3 = new RegExp(escapeRegex(BLUE) + escapeRegex(BOLD) + "0" + escapeRegex(RESET) + ".*?背景任務");
+      const regexSub3 = new RegExp(escapeRegex(BLUE) + escapeRegex(BOLD) + "0" + escapeRegex(RESET) + ".*?子代理");
+      const regexArt3 = new RegExp(escapeRegex(BOLD) + "0" + escapeRegex(RESET) + ".*?工件數");
 
       const p1_3 = regexPending3.test(res3.stdout);
       const p2_3 = regexBg3.test(res3.stdout);
@@ -420,7 +420,7 @@ async function main() {
       console.log(`狀態列輸出: ${res4.stdout.trim()}`);
 
       // 驗證輸出是否為子代理 4 (4 值對應配色為 YELLOW)
-      const regexSub4 = new RegExp("子代理.*?" + escapeRegex(YELLOW) + escapeRegex(BOLD) + "4" + escapeRegex(RESET));
+      const regexSub4 = new RegExp(escapeRegex(YELLOW) + escapeRegex(BOLD) + "4" + escapeRegex(RESET) + ".*?子代理");
 
       const p3_4 = regexSub4.test(res4.stdout);
 
@@ -537,9 +537,9 @@ async function main() {
       else if (tcVal === 'accept-edits') expectedColor = YELLOW;
 
       const regexMode = new RegExp(
-        escapeRegex(tc.expectedLabel) + ".*?" + 
         escapeRegex(expectedColor) + escapeRegex(BOLD) + 
-        escapeRegex(tc.expectedValue) + escapeRegex(RESET)
+        escapeRegex(tc.expectedValue) + ".*?" + 
+        escapeRegex(tc.expectedLabel)
       );
 
       const match = regexMode.test(res5.stdout);
@@ -606,67 +606,67 @@ async function main() {
         name: "輸入為無效 JSON 字串",
         stdin: "{invalid-json: [",
         cache: {},
-        verify: (res, out) => res.code === 0 && out.includes("模式: Default")
+        verify: (res, out) => res.code === 0 && out.includes("Default 模式")
       },
       {
         name: "輸入為 JSON null",
         stdin: "null",
         cache: {},
-        verify: (res, out) => res.code === 0 && out.includes("模式: Default")
+        verify: (res, out) => res.code === 0 && out.includes("Default 模式")
       },
       {
         name: "輸入為 JSON 陣列",
         stdin: "[1, 2, 3]",
         cache: {},
-        verify: (res, out) => res.code === 0 && out.includes("模式: Default")
+        verify: (res, out) => res.code === 0 && out.includes("Default 模式")
       },
       {
         name: "meta.mode 為陣列型態",
         stdin: { mode: ["planning", "code-only"] },
         cache: {},
-        verify: (res, out) => res.code === 0 && out.includes("模式: Default")
+        verify: (res, out) => res.code === 0 && out.includes("Default 模式")
       },
       {
         name: "meta.mode 為物件型態",
         stdin: { mode: { type: "interactive" } },
         cache: {},
-        verify: (res, out) => res.code === 0 && out.includes("模式: Default")
+        verify: (res, out) => res.code === 0 && out.includes("Default 模式")
       },
       {
         name: "meta.mode 為數字型態",
         stdin: { mode: 42 },
         cache: {},
-        verify: (res, out) => res.code === 0 && out.includes("模式: Default")
+        verify: (res, out) => res.code === 0 && out.includes("Default 模式")
       },
       {
         name: "meta.mode 為空字串",
         stdin: { mode: "" },
         cache: {},
-        verify: (res, out) => res.code === 0 && out.includes("模式: Default")
+        verify: (res, out) => res.code === 0 && out.includes("Default 模式")
       },
       {
         name: "meta.mode 為多個空格",
         stdin: { mode: "   " },
         cache: {},
-        verify: (res, out) => res.code === 0 && out.includes("模式: Default")
+        verify: (res, out) => res.code === 0 && out.includes("Default 模式")
       },
       {
         name: "快取檔為無效 JSON",
         stdin: { mode: "planning" },
         cache: "{ bad json }",
-        verify: (res, out) => res.code === 0 && out.includes("模式: Planning")
+        verify: (res, out) => res.code === 0 && out.includes("Planning 模式")
       },
       {
         name: "快取檔為空物件",
         stdin: { mode: "planning" },
         cache: {},
-        verify: (res, out) => res.code === 0 && out.includes("模式: Planning")
+        verify: (res, out) => res.code === 0 && out.includes("Planning 模式")
       },
       {
         name: "快取檔中 models 為字串",
         stdin: { mode: "planning" },
         cache: { models: "not-an-object" },
-        verify: (res, out) => res.code === 0 && out.includes("模式: Planning")
+        verify: (res, out) => res.code === 0 && out.includes("Planning 模式")
       },
       {
         name: "快取檔 models 包含 null 值",

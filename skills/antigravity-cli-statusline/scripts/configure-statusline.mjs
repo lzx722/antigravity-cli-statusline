@@ -270,17 +270,25 @@ let workspacePath = '';
 
 for (let i = 2; i < process.argv.length; i++) {
   if (process.argv[i] === '--lang' && process.argv[i + 1]) {
-    lang = process.argv[i + 1];
-    i++;
-  } else if (process.argv[i] === '--selected' && process.argv[i + 1]) {
-    selectedStr = process.argv[i + 1];
-    i++;
-  } else if (process.argv[i] === '--order' && process.argv[i + 1]) {
-    orderStr = process.argv[i + 1];
-    i++;
-  } else if (process.argv[i] === '--workspace' && process.argv[i + 1]) {
-    workspacePath = process.argv[i + 1];
-    i++;
+    lang = process.argv[++i];
+  } else if (process.argv[i] === '--selected') {
+    const tokens = [];
+    while (i + 1 < process.argv.length && !process.argv[i + 1].startsWith('--')) {
+      tokens.push(process.argv[++i]);
+    }
+    selectedStr = tokens.join(' ');
+  } else if (process.argv[i] === '--order') {
+    const tokens = [];
+    while (i + 1 < process.argv.length && !process.argv[i + 1].startsWith('--')) {
+      tokens.push(process.argv[++i]);
+    }
+    orderStr = tokens.join(' ');
+  } else if (process.argv[i] === '--workspace') {
+    const tokens = [];
+    while (i + 1 < process.argv.length && !process.argv[i + 1].startsWith('--')) {
+      tokens.push(process.argv[++i]);
+    }
+    workspacePath = tokens.join(' ');
   }
 }
 
@@ -295,7 +303,13 @@ let selectedList = [];
 try {
   selectedList = JSON.parse(selectedStr.replace(/^\uFEFF/, ''));
 } catch (e) {
-  console.error('解析 --selected JSON 字串失敗：', e);
+  // 如果 JSON 解析失敗（例如 Windows 命令列引號脫逸導致），嘗試直接萃取中英文括號中的識別碼
+  const idMatches = [...selectedStr.matchAll(/[\(（]([a-z0-9-]+)[\)）]/gi)].map(m => m[1]);
+  if (idMatches.length > 0) {
+    selectedList = idMatches;
+  } else if (selectedStr && selectedStr !== '[]') {
+    selectedList = selectedStr.split(',').map(s => s.trim().replace(/^['"\[\]]+|['"\[\]]+$/g, '')).filter(Boolean);
+  }
 }
 
 // 提取英文識別碼

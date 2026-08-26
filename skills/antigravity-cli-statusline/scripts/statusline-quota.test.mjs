@@ -58,6 +58,20 @@ function makeTempHome(cache, settings) {
   return home;
 }
 
+function safeRmTempHome(homeDir) {
+  for (let i = 0; i < 5; i++) {
+    try {
+      rmSync(homeDir, { recursive: true, force: true });
+      return;
+    } catch (e) {
+      if (i === 4) break;
+      // busy wait briefly on Windows
+      const start = Date.now();
+      while (Date.now() - start < 100) {}
+    }
+  }
+}
+
 async function main() {
   console.log("=== Running statusline-quota.test.mjs (R1-R4) ===");
 
@@ -65,8 +79,8 @@ async function main() {
 
   try {
     // ----------------------------------------------------
-    // Test Case R1: Weekly countdown renders
-    // Justification: Verifies that weekly reset countdown displays in BLUE+BOLD for a Gemini model.
+    // Test Case R1: Weekly countdown renders (combined format)
+    // Justification: Verifies that weekly reset countdown displays combined with quota.
     // ----------------------------------------------------
     console.log("\n[Test R1] Verifying weekly countdown rendering...");
     const mockCacheR1 = {
@@ -97,7 +111,7 @@ async function main() {
       const resR1 = await runStatusline(metaR1, homeR1);
       console.log("R1 Output:", JSON.stringify(resR1.stdout));
 
-      const expectedR1 = `⏳ ${WHITE}Weekly Reset:${RESET} ${BLUE_BOLD}4d 11h${RESET}`;
+      const expectedR1 = `📅 \x1b[90m[\x1b[0m\x1b[38;2;87;202;255m█████\x1b[90m░\x1b[0m\x1b[90m]\x1b[0m \x1b[38;2;87;202;255m\x1b[1m90%\x1b[0m (⏳4d 11h)`;
       if (resR1.code === 0 && resR1.stdout.includes(expectedR1)) {
         console.log("✅ R1 passed!");
       } else {
@@ -105,7 +119,7 @@ async function main() {
         testsPassed = false;
       }
     } finally {
-      rmSync(homeR1, { recursive: true, force: true });
+      safeRmTempHome(homeR1);
     }
 
     // ----------------------------------------------------
@@ -141,7 +155,7 @@ async function main() {
       const resR2 = await runStatusline(metaR2, homeR2);
       console.log("R2 Output:", JSON.stringify(resR2.stdout));
 
-      const expectedR2 = `📅 ${WHITE}Weekly Available:${RESET} \x1b[90m[\x1b[0m${BLUE_BOLD}██████\x1b[0m\x1b[90m]\x1b[0m ${BLUE_BOLD}90%${RESET}`;
+      const expectedR2 = `📅 \x1b[90m[\x1b[0m\x1b[38;2;87;202;255m█████\x1b[90m░\x1b[0m\x1b[90m]\x1b[0m \x1b[38;2;87;202;255m\x1b[1m90%\x1b[0m`;
       if (resR2.code === 0 && resR2.stdout.includes(expectedR2)) {
         console.log("✅ R2 passed!");
       } else {
@@ -149,7 +163,7 @@ async function main() {
         testsPassed = false;
       }
     } finally {
-      rmSync(homeR2, { recursive: true, force: true });
+      safeRmTempHome(homeR2);
     }
 
     // ----------------------------------------------------
@@ -185,7 +199,7 @@ async function main() {
       const resR3 = await runStatusline(metaR3, homeR3);
       console.log("R3 Output:", JSON.stringify(resR3.stdout));
 
-      const expectedR3 = `📅 ${WHITE}Weekly Available:${RESET} \x1b[90m[\x1b[0m${GREEN_BOLD}█████\x1b[0m\x1b[90m░]\x1b[0m ${GREEN_BOLD}61%${RESET}`;
+      const expectedR3 = `📅 \x1b[90m[\x1b[0m\x1b[38;2;92;219;109m████\x1b[90m░░\x1b[0m\x1b[90m]\x1b[0m \x1b[38;2;92;219;109m\x1b[1m61%\x1b[0m`;
       if (resR3.code === 0 && resR3.stdout.includes(expectedR3)) {
         console.log("✅ R3 passed!");
       } else {
@@ -193,12 +207,12 @@ async function main() {
         testsPassed = false;
       }
     } finally {
-      rmSync(homeR3, { recursive: true, force: true });
+      safeRmTempHome(homeR3);
     }
 
     // ----------------------------------------------------
     // Test Case R4: Graceful fallback
-    // Justification: Verifies missing-data degradation (no weekly key returns N/A without crash).
+    // Justification: Verifies missing-data degradation (no weekly key returns 100% without crash).
     // ----------------------------------------------------
     console.log("\n[Test R4] Verifying graceful fallback...");
     const mockCacheR4 = {
@@ -222,7 +236,7 @@ async function main() {
       const resR4 = await runStatusline(metaR4, homeR4);
       console.log("R4 Output:", JSON.stringify(resR4.stdout));
 
-      const expectedR4 = `⏳ ${WHITE}Weekly Reset:${RESET} ${BLUE_BOLD}N/A${RESET}`;
+      const expectedR4 = `📅 \x1b[90m[\x1b[0m\x1b[38;2;87;202;255m██████\x1b[90m\x1b[0m\x1b[90m]\x1b[0m \x1b[38;2;87;202;255m\x1b[1m100%\x1b[0m`;
       if (resR4.code === 0 && resR4.stdout.includes(expectedR4)) {
         console.log("✅ R4 passed!");
       } else {
@@ -230,7 +244,7 @@ async function main() {
         testsPassed = false;
       }
     } finally {
-      rmSync(homeR4, { recursive: true, force: true });
+      safeRmTempHome(homeR4);
     }
 
     // ----------------------------------------------------
@@ -241,7 +255,7 @@ async function main() {
     const mockCacheR5 = {
       models: {
         'gemini-1.5-pro': {
-          percentage: 85,
+          remaining_percentage: 85,
           reset_time: '2026-07-05T03:22:46Z',
           refreshes_in: '3h 20m'
         }
@@ -267,8 +281,8 @@ async function main() {
       console.log("R5 Output:", JSON.stringify(resR5.stdout));
 
       const expectedR5_Model = `🤖 \x1b[38;2;71;150;227m\x1b[1mGemini 1.5 Pro\x1b[0m`;
-      const expectedR5_Quota = `⚡ ${WHITE}5h配额:${RESET}`;
-      const expectedR5_Context = `📚 ${WHITE}上下文:${RESET}`;
+      const expectedR5_Quota = `⚡ \x1b[90m[\x1b[0m\x1b[38;2;87;202;255m█████\x1b[90m░\x1b[0m\x1b[90m]\x1b[0m \x1b[38;2;87;202;255m\x1b[1m85%\x1b[0m`;
+      const expectedR5_Context = `📚 \x1b[90m[\x1b[0m\x1b[38;2;87;202;255m\x1b[90m░░░░░░\x1b[0m\x1b[90m]\x1b[0m \x1b[38;2;87;202;255m\x1b[1m0.0%\x1b[0m`;
 
       if (resR5.code === 0 && resR5.stdout.includes(expectedR5_Model) && resR5.stdout.includes(expectedR5_Quota) && resR5.stdout.includes(expectedR5_Context)) {
         console.log("✅ R5 passed!");
@@ -277,7 +291,7 @@ async function main() {
         testsPassed = false;
       }
     } finally {
-      rmSync(homeR5, { recursive: true, force: true });
+      safeRmTempHome(homeR5);
     }
 
   } catch (err) {

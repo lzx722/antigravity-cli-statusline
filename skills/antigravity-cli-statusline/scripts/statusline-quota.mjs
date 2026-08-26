@@ -505,23 +505,60 @@ async function getMetricValueAsync(meta, keys, countersCachePath, fallbackFn) {
   return await fallbackFn();
 }
 
+function getAgentStateLabel(lang, rawState) {
+  const s = (rawState || '').toLowerCase();
+  if (lang === 'zh-cn') {
+    if (s.includes('error') || s.includes('fail')) return '异常';
+    if (s.includes('think')) return '思考中';
+    if (s.includes('tool')) return '工具调用中';
+    if (s.includes('work') || s.includes('busy') || s.includes('run')) return '工作中';
+    if (s.includes('init')) return '初始化中';
+    if (s.includes('idle') || s.includes('ready')) return '空闲';
+    return rawState || '空闲';
+  }
+  if (lang === 'zh-tw') {
+    if (s.includes('error') || s.includes('fail')) return '異常';
+    if (s.includes('think')) return '思考中';
+    if (s.includes('tool')) return '工具呼叫中';
+    if (s.includes('work') || s.includes('busy') || s.includes('run')) return '工作中';
+    if (s.includes('init')) return '初始化中';
+    if (s.includes('idle') || s.includes('ready')) return '閒置';
+    return rawState || '閒置';
+  }
+  if (lang === 'jp') {
+    if (s.includes('error') || s.includes('fail')) return 'エラー';
+    if (s.includes('think')) return '思考中';
+    if (s.includes('tool')) return 'ツール呼出中';
+    if (s.includes('work') || s.includes('busy') || s.includes('run')) return '実行中';
+    if (s.includes('init')) return '初期化中';
+    if (s.includes('idle') || s.includes('ready')) return '待機中';
+    return rawState || '待機中';
+  }
+  if (s.includes('error') || s.includes('fail')) return 'error';
+  if (s.includes('think')) return 'thinking';
+  if (s.includes('tool')) return 'tool use';
+  if (s.includes('work') || s.includes('busy') || s.includes('run')) return 'working';
+  if (s.includes('init')) return 'initializing';
+  if (s.includes('idle') || s.includes('ready')) return 'idle';
+  return rawState || 'idle';
+}
+
 async function extractMetricsAsync(meta, lang, fallbackModel, cache, cachedAccount, quotaInfo, contextInfo, weeklyInfo = { remaining_percentage: 100, refreshes_in: '' }) {
   const unknownStr = (lang === 'zh-cn' || lang === 'zh-tw') ? '未知' : (lang === 'jp' ? '不明' : 'Unknown');
-  const noneStr = (lang === 'zh-cn' || lang === 'zh-tw') ? (lang === 'zh-cn' ? '无' : '無') : (lang === 'jp' ? 'なし' : 'N/A');
 
   // Quota
   const quotaPct = quotaInfo.remaining_percentage;
   const quotaColor = getColorByPercentage(quotaPct);
   const quotaVal = `${Math.round(quotaPct)}%`;
   const quotaBar = renderProgressBar(quotaPct, quotaColor, 6);
-  const countdownVal = quotaInfo.refreshes_in || noneStr;
+  const countdownVal = quotaInfo.refreshes_in || '';
 
   // Weekly Quota
   const weeklyPct = weeklyInfo.remaining_percentage;
   const weeklyQuotaColor = getColorByPercentage(weeklyPct);
   const weeklyQuotaVal = `${Math.round(weeklyPct)}%`;
   const weeklyQuotaBar = renderProgressBar(weeklyPct, weeklyQuotaColor, 6);
-  const weeklyCountdownVal = weeklyInfo.refreshes_in || noneStr;
+  const weeklyCountdownVal = weeklyInfo.refreshes_in || '';
 
   // Context
   const remainCtx = Math.max(0, 100 - contextInfo.usedPctNum);
@@ -540,6 +577,7 @@ async function extractMetricsAsync(meta, lang, fallbackModel, cache, cachedAccou
 
   // Agent State
   const agentState = meta?.agent_state || 'idle';
+  const agentStateLabel = getAgentStateLabel(lang, agentState);
   const toolConfirmPending = !!meta?.tool_confirmation_pending;
 
   // Filter out inactive subagents before counting
@@ -687,19 +725,19 @@ async function extractMetricsAsync(meta, lang, fallbackModel, cache, cachedAccou
   const memUsage = `${rssMem}MB`;
   const vcsDirtyGlyph = vcsDirtyFlag ? '✗' : '✓';
   const vcsDirtyLabel = vcsDirtyFlag
-    ? (lang === 'zh-cn' ? '有变更' : (lang === 'zh-tw' ? '有變更' : (lang === 'jp' ? '変更あり' : 'dirty')))
-    : (lang === 'zh-cn' ? '干净' : (lang === 'zh-tw' ? '乾淨' : (lang === 'jp' ? 'クリーン' : 'clean')));
+    ? (lang === 'zh-cn' ? '工作区有变更' : (lang === 'zh-tw' ? '工作區有變更' : (lang === 'jp' ? '変更あり' : 'dirty')))
+    : (lang === 'zh-cn' ? '工作区干净' : (lang === 'zh-tw' ? '工作區乾淨' : (lang === 'jp' ? 'クリーン' : 'clean')));
   const vcsType = meta?.vcs?.type || 'git';
 
   const sandboxEnabled = !!meta?.sandbox?.enabled;
   const sandboxAllowNet = !!meta?.sandbox?.allow_network;
   let sandboxStatusVal;
   if (!sandboxEnabled) {
-    sandboxStatusVal = (lang === 'zh-cn' || lang === 'zh-tw') ? (lang === 'zh-cn' ? '关闭' : '關閉') : (lang === 'jp' ? 'オフ' : 'off');
+    sandboxStatusVal = (lang === 'zh-cn') ? '沙盒关闭' : ((lang === 'zh-tw') ? '沙盒關閉' : ((lang === 'jp') ? 'サンドボックス無効' : 'sandbox off'));
   } else if (sandboxAllowNet) {
-    sandboxStatusVal = (lang === 'zh-cn' || lang === 'zh-tw') ? (lang === 'zh-cn' ? '启用（联网）' : '啟用（聯網）') : (lang === 'jp' ? 'オン（ネット）' : 'on (net)');
+    sandboxStatusVal = (lang === 'zh-cn') ? '沙盒开启 (联网)' : ((lang === 'zh-tw') ? '沙盒啟用 (聯網)' : ((lang === 'jp') ? 'サンドボックス有効 (ネット)' : 'sandbox on (net)'));
   } else {
-    sandboxStatusVal = (lang === 'zh-cn' || lang === 'zh-tw') ? (lang === 'zh-cn' ? '启用（离线）' : '啟用（離線）') : (lang === 'jp' ? 'オン（オフライン）' : 'on (no-net)');
+    sandboxStatusVal = (lang === 'zh-cn') ? '沙盒开启 (离线)' : ((lang === 'zh-tw') ? '沙盒啟用 (離線)' : ((lang === 'jp') ? 'サンドボックス有効 (オフライン)' : 'sandbox on (offline)'));
   }
 
   let agentProfileName = (lang === 'zh-cn' || lang === 'zh-tw') ? (lang === 'zh-cn' ? '默认' : '預設') : (lang === 'jp' ? 'デフォルト' : 'Default');
@@ -723,7 +761,7 @@ async function extractMetricsAsync(meta, lang, fallbackModel, cache, cachedAccou
   return {
     fallbackModel, quotaColor, quotaVal, quotaBar, contextColor, usedPct, contextBar, memUsage, tokenCount,
     countdownVal, gitBranch, projectName, projectFullPath, planTier, accountEmail,
-    agentState, toolConfirmPending, pendingInputCount, backgroundTasksCount, subagentsCount,
+    agentState, agentStateLabel, toolConfirmPending, pendingInputCount, backgroundTasksCount, subagentsCount,
     artifactsCount, vcsDirtyFlag, vcsDirtyGlyph, vcsDirtyLabel, vcsType, sandboxEnabled,
     sandboxAllowNet, sandboxStatusVal, cliVersion, conversationIdShort, agentProfileName,
     weeklyQuotaColor, weeklyQuotaVal, weeklyQuotaBar, weeklyCountdownVal, mode
@@ -734,115 +772,131 @@ function buildI18nDict(lang, m) {
   const dicts = {
     'zh-cn': {
       'model-name': `🤖 ${getModelColor(m.fallbackModel)}${BOLD}${m.fallbackModel}${RESET}`,
-      'quota': `⚡ ${WHITE}5h配额:${RESET} ${m.quotaBar} ${m.quotaColor}${BOLD}${m.quotaVal}${RESET}`,
-      'context-used': `📚 ${WHITE}上下文:${RESET} ${m.contextBar} ${m.contextColor}${BOLD}${m.usedPct}${RESET}`,
-      'memory-usage': `💻 ${WHITE}内存:${RESET} ${BLUE}${BOLD}${m.memUsage}${RESET}`,
-      'token-count': `🪙 ${WHITE}Token:${RESET} ${m.tokenCount}`,
-      'quota-reset-countdown': `⏳ ${WHITE}5h重置:${RESET} ${BLUE}${BOLD}${m.countdownVal}${RESET}`,
-      'quota-weekly': `📅 ${WHITE}周配额:${RESET} ${m.weeklyQuotaBar} ${m.weeklyQuotaColor}${BOLD}${m.weeklyQuotaVal}${RESET}`,
-      'quota-weekly-countdown': `⏳ ${WHITE}周重置:${RESET} ${BLUE}${BOLD}${m.weeklyCountdownVal}${RESET}`,
-      'git-branch': `🌿 ${WHITE}Git: ${BOLD}${m.gitBranch}${RESET}`,
-      'project-path': `📁 ${WHITE}项目: ${BOLD}${m.projectName}${RESET}`,
-      'project-full-path': `📁 ${WHITE}完整路径: ${BOLD}${m.projectFullPath}${RESET}`,
-      'plan-tier': `👑 ${WHITE}方案: ${BOLD}${m.planTier}${RESET}`,
-      'account-email': `👤 ${WHITE}账号: ${BOLD}${m.accountEmail}${RESET}`,
-      'agent-state': `⚙️ ${WHITE}状态:${RESET} ${getAgentStateColor(m.agentState)}${BOLD}${m.agentState}${RESET}`,
-      'tool-confirmation': `🔔 ${WHITE}待确认:${RESET} ${getToolConfirmColor(m.toolConfirmPending)}${BOLD}${m.toolConfirmPending ? '等待确认' : '已就绪'}${RESET}`,
-      'pending-input': `📥 ${WHITE}队列:${RESET} ${getColorByCount(m.pendingInputCount)}${BOLD}${m.pendingInputCount}${RESET}`,
-      'background-tasks': `🔄 ${WHITE}后台:${RESET} ${getColorByCount(m.backgroundTasksCount)}${BOLD}${m.backgroundTasksCount}${RESET}`,
-      'subagents': `👥 ${WHITE}子代理:${RESET} ${getColorByCount(m.subagentsCount)}${BOLD}${m.subagentsCount}${RESET}`,
-      'artifacts': `📦 ${WHITE}工件数: ${BOLD}${m.artifactsCount}${RESET}`,
-      'vcs-dirty': `📝 ${WHITE}工作区:${RESET} ${getVcsDirtyColor(m.vcsDirtyFlag)}${BOLD}${m.vcsDirtyGlyph} ${m.vcsDirtyLabel}${RESET}`,
-      'vcs-type': `🗂️ ${WHITE}VCS: ${BOLD}${m.vcsType}${RESET}`,
-      'sandbox-status': `🛡️ ${WHITE}沙盒:${RESET} ${getSandboxColor(m.sandboxEnabled, m.sandboxAllowNet)}${BOLD}${m.sandboxStatusVal}${RESET}`,
-      'cli-version': `🏷️ ${WHITE}CLI: ${BOLD}${m.cliVersion}${RESET}`,
-      'conversation-id': `💬 ${WHITE}会话: ${BOLD}${m.conversationIdShort}${RESET}`,
-      'agent-profile': `🎭 ${WHITE}角色:${RESET} ${BLUE}${BOLD}${m.agentProfileName}${RESET}`,
-      'mode': `🎯 ${WHITE}模式:${RESET} ${getModeColor(m.mode)}${BOLD}${m.mode}${RESET}`
+      'quota': `⚡ ${m.quotaBar} ${m.quotaColor}${BOLD}${m.quotaVal}${RESET}`,
+      'quota-reset-countdown': m.countdownVal
+        ? `⚡ ${m.quotaBar} ${m.quotaColor}${BOLD}${m.quotaVal}${RESET}（⏳${m.countdownVal}）`
+        : `⚡ ${m.quotaBar} ${m.quotaColor}${BOLD}${m.quotaVal}${RESET}`,
+      'quota-weekly': `📅 ${m.weeklyQuotaBar} ${m.weeklyQuotaColor}${BOLD}${m.weeklyQuotaVal}${RESET}`,
+      'quota-weekly-countdown': m.weeklyCountdownVal
+        ? `📅 ${m.weeklyQuotaBar} ${m.weeklyQuotaColor}${BOLD}${m.weeklyQuotaVal}${RESET}（⏳${m.weeklyCountdownVal}）`
+        : `📅 ${m.weeklyQuotaBar} ${m.weeklyQuotaColor}${BOLD}${m.weeklyQuotaVal}${RESET}`,
+      'context-used': `📚 ${m.contextBar} ${m.contextColor}${BOLD}${m.usedPct}${RESET}`,
+      'token-count': `🪙 ${m.tokenCount}`,
+      'memory-usage': `💻 ${BLUE}${BOLD}${m.memUsage}${RESET}`,
+      'git-branch': `🌿 ${BOLD}${m.gitBranch}${RESET}`,
+      'vcs-dirty': `📝 ${getVcsDirtyColor(m.vcsDirtyFlag)}${BOLD}${m.vcsDirtyGlyph} ${m.vcsDirtyLabel}${RESET}`,
+      'vcs-type': `🗂️ ${BOLD}${m.vcsType}${RESET}`,
+      'project-path': `📁 ${BOLD}${m.projectName}${RESET}`,
+      'project-full-path': `📁 ${BOLD}${m.projectFullPath}${RESET}`,
+      'plan-tier': `👑 ${BOLD}${m.planTier}${RESET}`,
+      'account-email': `👤 ${BOLD}${m.accountEmail}${RESET}`,
+      'agent-profile': `🎭 ${BLUE}${BOLD}${m.agentProfileName} 角色${RESET}`,
+      'agent-state': `⚙️ ${getAgentStateColor(m.agentState)}${BOLD}${m.agentStateLabel}${RESET}`,
+      'tool-confirmation': `🔔 ${getToolConfirmColor(m.toolConfirmPending)}${BOLD}${m.toolConfirmPending ? '等待确认' : '已就绪'}${RESET}`,
+      'pending-input': `📥 ${getColorByCount(m.pendingInputCount)}${BOLD}${m.pendingInputCount}${RESET} 队列`,
+      'background-tasks': `🔄 ${getColorByCount(m.backgroundTasksCount)}${BOLD}${m.backgroundTasksCount}${RESET} 后台`,
+      'subagents': `👥 ${getColorByCount(m.subagentsCount)}${BOLD}${m.subagentsCount}${RESET} 子代理`,
+      'artifacts': `📦 ${BOLD}${m.artifactsCount}${RESET} 工件`,
+      'sandbox-status': `🛡️ ${getSandboxColor(m.sandboxEnabled, m.sandboxAllowNet)}${BOLD}${m.sandboxStatusVal}${RESET}`,
+      'cli-version': `🏷️ ${BOLD}${m.cliVersion}${RESET}`,
+      'conversation-id': `💬 ${BOLD}${m.conversationIdShort}${RESET}`,
+      'mode': `🎯 ${getModeColor(m.mode)}${BOLD}${m.mode} 模式${RESET}`
     },
     'zh-tw': {
       'model-name': `🤖 ${getModelColor(m.fallbackModel)}${BOLD}${m.fallbackModel}${RESET}`,
-      'quota': `⚡ ${WHITE}小時可用:${RESET} ${m.quotaBar} ${m.quotaColor}${BOLD}${m.quotaVal}${RESET}`,
-      'context-used': `📚 ${WHITE}脈絡用量:${RESET} ${m.contextBar} ${m.contextColor}${BOLD}${m.usedPct}${RESET}`,
-      'memory-usage': `💻 ${WHITE}記憶體:${RESET} ${BLUE}${BOLD}${m.memUsage}${RESET}`,
-      'token-count': `🪙 ${WHITE}權杖數:${RESET} ${m.tokenCount}`,
-      'quota-reset-countdown': `⏳ ${WHITE}小時倒數:${RESET} ${BLUE}${BOLD}${m.countdownVal}${RESET}`,
-      'quota-weekly': `📅 ${WHITE}每週可用:${RESET} ${m.weeklyQuotaBar} ${m.weeklyQuotaColor}${BOLD}${m.weeklyQuotaVal}${RESET}`,
-      'quota-weekly-countdown': `⏳ ${WHITE}每週倒數:${RESET} ${BLUE}${BOLD}${m.weeklyCountdownVal}${RESET}`,
-      'git-branch': `🌿 ${WHITE}Git: ${BOLD}${m.gitBranch}${RESET}`,
-      'project-path': `📁 ${WHITE}專案: ${BOLD}${m.projectName}${RESET}`,
-      'project-full-path': `📁 ${WHITE}完整路徑: ${BOLD}${m.projectFullPath}${RESET}`,
-      'plan-tier': `👑 ${WHITE}訂閱方案: ${BOLD}${m.planTier}${RESET}`,
-      'account-email': `👤 ${WHITE}帳號: ${BOLD}${m.accountEmail}${RESET}`,
-      'agent-state': `⚙️ ${WHITE}代理狀態:${RESET} ${getAgentStateColor(m.agentState)}${BOLD}${m.agentState}${RESET}`,
-      'tool-confirmation': `🔔 ${WHITE}工具待確認:${RESET} ${getToolConfirmColor(m.toolConfirmPending)}${BOLD}${m.toolConfirmPending ? '在等你' : '都好了'}${RESET}`,
-      'pending-input': `📥 ${WHITE}待處理輸入:${RESET} ${getColorByCount(m.pendingInputCount)}${BOLD}${m.pendingInputCount}${RESET}`,
-      'background-tasks': `🔄 ${WHITE}背景任務:${RESET} ${getColorByCount(m.backgroundTasksCount)}${BOLD}${m.backgroundTasksCount}${RESET}`,
-      'subagents': `👥 ${WHITE}子代理:${RESET} ${getColorByCount(m.subagentsCount)}${BOLD}${m.subagentsCount}${RESET}`,
-      'artifacts': `📦 ${WHITE}工件數: ${BOLD}${m.artifactsCount}${RESET}`,
-      'vcs-dirty': `📝 ${WHITE}工作區狀態:${RESET} ${getVcsDirtyColor(m.vcsDirtyFlag)}${BOLD}${m.vcsDirtyGlyph} ${m.vcsDirtyLabel}${RESET}`,
-      'vcs-type': `🗂️ ${WHITE}VCS類型: ${BOLD}${m.vcsType}${RESET}`,
-      'sandbox-status': `🛡️ ${WHITE}沙盒狀態:${RESET} ${getSandboxColor(m.sandboxEnabled, m.sandboxAllowNet)}${BOLD}${m.sandboxStatusVal}${RESET}`,
-      'cli-version': `🏷️ ${WHITE}CLI版本: ${BOLD}${m.cliVersion}${RESET}`,
-      'conversation-id': `💬 ${WHITE}對話ID: ${BOLD}${m.conversationIdShort}${RESET}`,
-      'agent-profile': `🎭 ${WHITE}代理角色:${RESET} ${BLUE}${BOLD}${m.agentProfileName}${RESET}`,
-      'mode': `🎯 ${WHITE}模式:${RESET} ${getModeColor(m.mode)}${BOLD}${m.mode}${RESET}`
+      'quota': `⚡ ${m.quotaBar} ${m.quotaColor}${BOLD}${m.quotaVal}${RESET}`,
+      'quota-reset-countdown': m.countdownVal
+        ? `⚡ ${m.quotaBar} ${m.quotaColor}${BOLD}${m.quotaVal}${RESET}（⏳${m.countdownVal}）`
+        : `⚡ ${m.quotaBar} ${m.quotaColor}${BOLD}${m.quotaVal}${RESET}`,
+      'quota-weekly': `📅 ${m.weeklyQuotaBar} ${m.weeklyQuotaColor}${BOLD}${m.weeklyQuotaVal}${RESET}`,
+      'quota-weekly-countdown': m.weeklyCountdownVal
+        ? `📅 ${m.weeklyQuotaBar} ${m.weeklyQuotaColor}${BOLD}${m.weeklyQuotaVal}${RESET}（⏳${m.weeklyCountdownVal}）`
+        : `📅 ${m.weeklyQuotaBar} ${m.weeklyQuotaColor}${BOLD}${m.weeklyQuotaVal}${RESET}`,
+      'context-used': `📚 ${m.contextBar} ${m.contextColor}${BOLD}${m.usedPct}${RESET}`,
+      'token-count': `🪙 ${m.tokenCount}`,
+      'memory-usage': `💻 ${BLUE}${BOLD}${m.memUsage}${RESET}`,
+      'git-branch': `🌿 ${BOLD}${m.gitBranch}${RESET}`,
+      'vcs-dirty': `📝 ${getVcsDirtyColor(m.vcsDirtyFlag)}${BOLD}${m.vcsDirtyGlyph} ${m.vcsDirtyLabel}${RESET}`,
+      'vcs-type': `🗂️ ${BOLD}${m.vcsType}${RESET}`,
+      'project-path': `📁 ${BOLD}${m.projectName}${RESET}`,
+      'project-full-path': `📁 ${BOLD}${m.projectFullPath}${RESET}`,
+      'plan-tier': `👑 ${BOLD}${m.planTier}${RESET}`,
+      'account-email': `👤 ${BOLD}${m.accountEmail}${RESET}`,
+      'agent-profile': `🎭 ${BLUE}${BOLD}${m.agentProfileName} 角色${RESET}`,
+      'agent-state': `⚙️ ${getAgentStateColor(m.agentState)}${BOLD}${m.agentStateLabel}${RESET}`,
+      'tool-confirmation': `🔔 ${getToolConfirmColor(m.toolConfirmPending)}${BOLD}${m.toolConfirmPending ? '在等你' : '都好了'}${RESET}`,
+      'pending-input': `📥 ${getColorByCount(m.pendingInputCount)}${BOLD}${m.pendingInputCount}${RESET} 待處理輸入`,
+      'background-tasks': `🔄 ${getColorByCount(m.backgroundTasksCount)}${BOLD}${m.backgroundTasksCount}${RESET} 背景任務`,
+      'subagents': `👥 ${getColorByCount(m.subagentsCount)}${BOLD}${m.subagentsCount}${RESET} 子代理`,
+      'artifacts': `📦 ${BOLD}${m.artifactsCount}${RESET} 工件數`,
+      'sandbox-status': `🛡️ ${getSandboxColor(m.sandboxEnabled, m.sandboxAllowNet)}${BOLD}${m.sandboxStatusVal}${RESET}`,
+      'cli-version': `🏷️ ${BOLD}${m.cliVersion}${RESET}`,
+      'conversation-id': `💬 ${BOLD}${m.conversationIdShort}${RESET}`,
+      'mode': `🎯 ${getModeColor(m.mode)}${BOLD}${m.mode} 模式${RESET}`
     },
     'us': {
       'model-name': `🤖 ${getModelColor(m.fallbackModel)}${BOLD}${m.fallbackModel}${RESET}`,
-      'quota': `⚡ ${WHITE}Hourly Available:${RESET} ${m.quotaBar} ${m.quotaColor}${BOLD}${m.quotaVal}${RESET}`,
-      'context-used': `📚 ${WHITE}Context Used:${RESET} ${m.contextBar} ${m.contextColor}${BOLD}${m.usedPct}${RESET}`,
-      'memory-usage': `💻 ${WHITE}RAM:${RESET} ${BLUE}${BOLD}${m.memUsage}${RESET}`,
-      'token-count': `🪙 ${WHITE}Tokens:${RESET} ${m.tokenCount}`,
-      'quota-reset-countdown': `⏳ ${WHITE}Hourly Reset:${RESET} ${BLUE}${BOLD}${m.countdownVal}${RESET}`,
-      'quota-weekly': `📅 ${WHITE}Weekly Available:${RESET} ${m.weeklyQuotaBar} ${m.weeklyQuotaColor}${BOLD}${m.weeklyQuotaVal}${RESET}`,
-      'quota-weekly-countdown': `⏳ ${WHITE}Weekly Reset:${RESET} ${BLUE}${BOLD}${m.weeklyCountdownVal}${RESET}`,
-      'git-branch': `🌿 ${WHITE}Git: ${BOLD}${m.gitBranch}${RESET}`,
-      'project-path': `📁 ${WHITE}Project: ${BOLD}${m.projectName}${RESET}`,
-      'project-full-path': `📁 ${WHITE}Project Path: ${BOLD}${m.projectFullPath}${RESET}`,
-      'plan-tier': `👑 ${WHITE}Plan: ${BOLD}${m.planTier}${RESET}`,
-      'account-email': `👤 ${WHITE}Account: ${BOLD}${m.accountEmail}${RESET}`,
-      'agent-state': `⚙️ ${WHITE}Agent:${RESET} ${getAgentStateColor(m.agentState)}${BOLD}${m.agentState}${RESET}`,
-      'tool-confirmation': `🔔 ${WHITE}Awaiting You:${RESET} ${getToolConfirmColor(m.toolConfirmPending)}${BOLD}${m.toolConfirmPending ? 'waiting' : 'all clear'}${RESET}`,
-      'pending-input': `📥 ${WHITE}Queue:${RESET} ${getColorByCount(m.pendingInputCount)}${BOLD}${m.pendingInputCount}${RESET}`,
-      'background-tasks': `🔄 ${WHITE}BG:${RESET} ${getColorByCount(m.backgroundTasksCount)}${BOLD}${m.backgroundTasksCount}${RESET}`,
-      'subagents': `👥 ${WHITE}Subagents:${RESET} ${getColorByCount(m.subagentsCount)}${BOLD}${m.subagentsCount}${RESET}`,
-      'artifacts': `📦 ${WHITE}Outputs: ${BOLD}${m.artifactsCount}${RESET}`,
-      'vcs-dirty': `📝 ${WHITE}Status:${RESET} ${getVcsDirtyColor(m.vcsDirtyFlag)}${BOLD}${m.vcsDirtyGlyph} ${m.vcsDirtyLabel}${RESET}`,
-      'vcs-type': `🗂️ ${WHITE}VCS: ${BOLD}${m.vcsType}${RESET}`,
-      'sandbox-status': `🛡️ ${WHITE}Sandbox:${RESET} ${getSandboxColor(m.sandboxEnabled, m.sandboxAllowNet)}${BOLD}${m.sandboxStatusVal}${RESET}`,
-      'cli-version': `🏷️ ${WHITE}CLI: ${BOLD}${m.cliVersion}${RESET}`,
-      'conversation-id': `💬 ${WHITE}Conv: ${BOLD}${m.conversationIdShort}${RESET}`,
-      'agent-profile': `🎭 ${WHITE}Profile:${RESET} ${BLUE}${BOLD}${m.agentProfileName}${RESET}`,
-      'mode': `🎯 ${WHITE}Mode:${RESET} ${getModeColor(m.mode)}${BOLD}${m.mode}${RESET}`
+      'quota': `⚡ ${m.quotaBar} ${m.quotaColor}${BOLD}${m.quotaVal}${RESET}`,
+      'quota-reset-countdown': m.countdownVal
+        ? `⚡ ${m.quotaBar} ${m.quotaColor}${BOLD}${m.quotaVal}${RESET} (⏳${m.countdownVal})`
+        : `⚡ ${m.quotaBar} ${m.quotaColor}${BOLD}${m.quotaVal}${RESET}`,
+      'quota-weekly': `📅 ${m.weeklyQuotaBar} ${m.weeklyQuotaColor}${BOLD}${m.weeklyQuotaVal}${RESET}`,
+      'quota-weekly-countdown': m.weeklyCountdownVal
+        ? `📅 ${m.weeklyQuotaBar} ${m.weeklyQuotaColor}${BOLD}${m.weeklyQuotaVal}${RESET} (⏳${m.weeklyCountdownVal})`
+        : `📅 ${m.weeklyQuotaBar} ${m.weeklyQuotaColor}${BOLD}${m.weeklyQuotaVal}${RESET}`,
+      'context-used': `📚 ${m.contextBar} ${m.contextColor}${BOLD}${m.usedPct}${RESET}`,
+      'token-count': `🪙 ${m.tokenCount}`,
+      'memory-usage': `💻 ${BLUE}${BOLD}${m.memUsage}${RESET}`,
+      'git-branch': `🌿 ${BOLD}${m.gitBranch}${RESET}`,
+      'vcs-dirty': `📝 ${getVcsDirtyColor(m.vcsDirtyFlag)}${BOLD}${m.vcsDirtyGlyph} ${m.vcsDirtyLabel}${RESET}`,
+      'vcs-type': `🗂️ ${BOLD}${m.vcsType}${RESET}`,
+      'project-path': `📁 ${BOLD}${m.projectName}${RESET}`,
+      'project-full-path': `📁 ${BOLD}${m.projectFullPath}${RESET}`,
+      'plan-tier': `👑 ${BOLD}${m.planTier}${RESET}`,
+      'account-email': `👤 ${BOLD}${m.accountEmail}${RESET}`,
+      'agent-profile': `🎭 ${BLUE}${BOLD}${m.agentProfileName}${RESET}`,
+      'agent-state': `⚙️ ${getAgentStateColor(m.agentState)}${BOLD}${m.agentStateLabel}${RESET}`,
+      'tool-confirmation': `🔔 ${getToolConfirmColor(m.toolConfirmPending)}${BOLD}${m.toolConfirmPending ? 'waiting' : 'ready'}${RESET}`,
+      'pending-input': `📥 ${getColorByCount(m.pendingInputCount)}${BOLD}${m.pendingInputCount}${RESET} queued`,
+      'background-tasks': `🔄 ${getColorByCount(m.backgroundTasksCount)}${BOLD}${m.backgroundTasksCount}${RESET} bg tasks`,
+      'subagents': `👥 ${getColorByCount(m.subagentsCount)}${BOLD}${m.subagentsCount}${RESET} subagents`,
+      'artifacts': `📦 ${BOLD}${m.artifactsCount}${RESET} artifacts`,
+      'sandbox-status': `🛡️ ${getSandboxColor(m.sandboxEnabled, m.sandboxAllowNet)}${BOLD}${m.sandboxStatusVal}${RESET}`,
+      'cli-version': `🏷️ ${BOLD}${m.cliVersion}${RESET}`,
+      'conversation-id': `💬 ${BOLD}${m.conversationIdShort}${RESET}`,
+      'mode': `🎯 ${getModeColor(m.mode)}${BOLD}${m.mode} Mode${RESET}`
     },
     'jp': {
       'model-name': `🤖 ${getModelColor(m.fallbackModel)}${BOLD}${m.fallbackModel}${RESET}`,
-      'quota': `⚡ ${WHITE}時間残量:${RESET} ${m.quotaBar} ${m.quotaColor}${BOLD}${m.quotaVal}${RESET}`,
-      'context-used': `📚 ${WHITE}コンテキスト使用:${RESET} ${m.contextBar} ${m.contextColor}${BOLD}${m.usedPct}${RESET}`,
-      'memory-usage': `💻 ${WHITE}メモリ:${RESET} ${BLUE}${BOLD}${m.memUsage}${RESET}`,
-      'token-count': `🪙 ${WHITE}トークン:${RESET} ${m.tokenCount}`,
-      'quota-reset-countdown': `⏳ ${WHITE}時間リセット:${RESET} ${BLUE}${BOLD}${m.countdownVal}${RESET}`,
-      'quota-weekly': `📅 ${WHITE}週間残量:${RESET} ${m.weeklyQuotaBar} ${m.weeklyQuotaColor}${BOLD}${m.weeklyQuotaVal}${RESET}`,
-      'quota-weekly-countdown': `⏳ ${WHITE}週間リセット:${RESET} ${BLUE}${BOLD}${m.weeklyCountdownVal}${RESET}`,
-      'git-branch': `🌿 ${WHITE}Gitブランチ: ${BOLD}${m.gitBranch}${RESET}`,
-      'project-path': `📁 ${WHITE}プロジェクト: ${BOLD}${m.projectName}${RESET}`,
-      'project-full-path': `📁 ${WHITE}パス: ${BOLD}${m.projectFullPath}${RESET}`,
-      'plan-tier': `👑 ${WHITE}プラン: ${BOLD}${m.planTier}${RESET}`,
-      'account-email': `👤 ${WHITE}アカウント: ${BOLD}${m.accountEmail}${RESET}`,
-      'agent-state': `⚙️ ${WHITE}状態:${RESET} ${getAgentStateColor(m.agentState)}${BOLD}${m.agentState}${RESET}`,
-      'tool-confirmation': `🔔 ${WHITE}ご承認待ち:${RESET} ${getToolConfirmColor(m.toolConfirmPending)}${BOLD}${m.toolConfirmPending ? '待機中' : 'すべて完了'}${RESET}`,
-      'pending-input': `📥 ${WHITE}入力キュー:${RESET} ${getColorByCount(m.pendingInputCount)}${BOLD}${m.pendingInputCount}${RESET}`,
-      'background-tasks': `🔄 ${WHITE}BGタスク:${RESET} ${getColorByCount(m.backgroundTasksCount)}${BOLD}${m.backgroundTasksCount}${RESET}`,
-      'subagents': `👥 ${WHITE}サブ代理:${RESET} ${getColorByCount(m.subagentsCount)}${BOLD}${m.subagentsCount}${RESET}`,
-      'artifacts': `📦 ${WHITE}成果物: ${BOLD}${m.artifactsCount}${RESET}`,
-      'vcs-dirty': `📝 ${WHITE}作業領域:${RESET} ${getVcsDirtyColor(m.vcsDirtyFlag)}${BOLD}${m.vcsDirtyGlyph} ${m.vcsDirtyLabel}${RESET}`,
-      'vcs-type': `🗂️ ${WHITE}VCS種別: ${BOLD}${m.vcsType}${RESET}`,
-      'sandbox-status': `🛡️ ${WHITE}サンドボックス:${RESET} ${getSandboxColor(m.sandboxEnabled, m.sandboxAllowNet)}${BOLD}${m.sandboxStatusVal}${RESET}`,
-      'cli-version': `🏷️ ${WHITE}CLI版: ${BOLD}${m.cliVersion}${RESET}`,
-      'conversation-id': `💬 ${WHITE}会話ID: ${BOLD}${m.conversationIdShort}${RESET}`,
-      'agent-profile': `🎭 ${WHITE}プロファイル:${RESET} ${BLUE}${BOLD}${m.agentProfileName}${RESET}`,
-      'mode': `🎯 ${WHITE}モード:${RESET} ${getModeColor(m.mode)}${BOLD}${m.mode}${RESET}`
+      'quota': `⚡ ${m.quotaBar} ${m.quotaColor}${BOLD}${m.quotaVal}${RESET}`,
+      'quota-reset-countdown': m.countdownVal
+        ? `⚡ ${m.quotaBar} ${m.quotaColor}${BOLD}${m.quotaVal}${RESET}（⏳${m.countdownVal}）`
+        : `⚡ ${m.quotaBar} ${m.quotaColor}${BOLD}${m.quotaVal}${RESET}`,
+      'quota-weekly': `📅 ${m.weeklyQuotaBar} ${m.weeklyQuotaColor}${BOLD}${m.weeklyQuotaVal}${RESET}`,
+      'quota-weekly-countdown': m.weeklyCountdownVal
+        ? `📅 ${m.weeklyQuotaBar} ${m.weeklyQuotaColor}${BOLD}${m.weeklyQuotaVal}${RESET}（⏳${m.weeklyCountdownVal}）`
+        : `📅 ${m.weeklyQuotaBar} ${m.weeklyQuotaColor}${BOLD}${m.weeklyQuotaVal}${RESET}`,
+      'context-used': `📚 ${m.contextBar} ${m.contextColor}${BOLD}${m.usedPct}${RESET}`,
+      'token-count': `🪙 ${m.tokenCount}`,
+      'memory-usage': `💻 ${BLUE}${BOLD}${m.memUsage}${RESET}`,
+      'git-branch': `🌿 ${BOLD}${m.gitBranch}${RESET}`,
+      'vcs-dirty': `📝 ${getVcsDirtyColor(m.vcsDirtyFlag)}${BOLD}${m.vcsDirtyGlyph} ${m.vcsDirtyLabel}${RESET}`,
+      'vcs-type': `🗂️ ${BOLD}${m.vcsType}${RESET}`,
+      'project-path': `📁 ${BOLD}${m.projectName}${RESET}`,
+      'project-full-path': `📁 ${BOLD}${m.projectFullPath}${RESET}`,
+      'plan-tier': `👑 ${BOLD}${m.planTier}${RESET}`,
+      'account-email': `👤 ${BOLD}${m.accountEmail}${RESET}`,
+      'agent-profile': `🎭 ${BLUE}${BOLD}${m.agentProfileName} ロール${RESET}`,
+      'agent-state': `⚙️ ${getAgentStateColor(m.agentState)}${BOLD}${m.agentStateLabel}${RESET}`,
+      'tool-confirmation': `🔔 ${getToolConfirmColor(m.toolConfirmPending)}${BOLD}${m.toolConfirmPending ? '待機中' : '準備完了'}${RESET}`,
+      'pending-input': `📥 ${getColorByCount(m.pendingInputCount)}${BOLD}${m.pendingInputCount}${RESET} キュー`,
+      'background-tasks': `🔄 ${getColorByCount(m.backgroundTasksCount)}${BOLD}${m.backgroundTasksCount}${RESET} BGタスク`,
+      'subagents': `👥 ${getColorByCount(m.subagentsCount)}${BOLD}${m.subagentsCount}${RESET} サブ代理`,
+      'artifacts': `📦 ${BOLD}${m.artifactsCount}${RESET} 成果物`,
+      'sandbox-status': `🛡️ ${getSandboxColor(m.sandboxEnabled, m.sandboxAllowNet)}${BOLD}${m.sandboxStatusVal}${RESET}`,
+      'cli-version': `🏷️ ${BOLD}${m.cliVersion}${RESET}`,
+      'conversation-id': `💬 ${BOLD}${m.conversationIdShort}${RESET}`,
+      'mode': `🎯 ${getModeColor(m.mode)}${BOLD}${m.mode} モード${RESET}`
     }
   };
   return dicts[lang] || dicts['zh-cn'] || dicts['zh-tw'];
@@ -896,9 +950,7 @@ async function main() {
     const settings = await getSettingsAsync(meta);
     const termWidth = Math.max(40, (meta?.terminal_width || process.stdout.columns || 80) - 15);
     
-    let fallbackModel = 'Gemini 3.5 Flash (High)';
-    if (meta?.model?.display_name) fallbackModel = meta.model.display_name;
-    else if (meta?.model?.id) fallbackModel = meta.model.id;
+    let fallbackModel = meta?.model?.display_name || meta?.model?.id || settings?.model || 'Gemini 3.7 Flash (High)';
     
     // 退讓模式
     if (!settings?.ui?.footer?.items) {
@@ -943,9 +995,7 @@ async function main() {
       await fs.writeFile(join(projectLogDir, 'hook_error.log'), `[${new Date().toISOString()}] ${err.stack || err.message}\n`, { encoding: 'utf8', flag: 'a' });
     } catch (e) {}
     
-    let fallbackModel = 'Gemini 3.5 Flash (High)';
-    if (meta?.model?.display_name) fallbackModel = meta.model.display_name;
-    else if (meta?.model?.id) fallbackModel = meta.model.id;
+    let fallbackModel = meta?.model?.display_name || meta?.model?.id || 'Gemini 3.7 Flash (High)';
     console.log(`? for shortcuts | ${fallbackModel}`);
   }
   process.exit(0);
