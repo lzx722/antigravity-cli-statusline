@@ -294,6 +294,56 @@ async function main() {
       safeRmTempHome(homeR5);
     }
 
+    // ----------------------------------------------------
+    // Test Case R6: Hourly Available uses shortTerm 5h quota
+    // Justification: Verifies that Hourly Available prefers shortTerm 5h quota (32% / 2h 2m) over weekly bottleneck model quota (4.7% / 1h 20m).
+    // ----------------------------------------------------
+    console.log("\n[Test R6] Verifying shortTerm 5h quota priority for Hourly Available...");
+    const mockCacheR6 = {
+      models: {
+        gemini36flashhigh: {
+          remaining_percentage: 4.67,
+          reset_time: '2026-08-07T11:12:18Z',
+          refreshes_in: '1h 20m'
+        }
+      },
+      shortTerm: {
+        gemini: {
+          remaining_percentage: 31.8,
+          reset_time: '2026-08-07T11:54:34Z',
+          refreshes_in: '2h 2m'
+        }
+      },
+      updatedAt: Date.now()
+    };
+    const settingsR6 = {
+      ui: {
+        language: "us",
+        footer: {
+          items: ["quota", "quota-reset-countdown"]
+        }
+      }
+    };
+    const metaR6 = {
+      model: { display_name: "Gemini 3.6 Flash (High)" },
+      terminal_width: 120
+    };
+
+    const homeR6 = makeTempHome(mockCacheR6, settingsR6);
+    try {
+      const resR6 = await runStatusline(metaR6, homeR6);
+      console.log("R6 Output:", JSON.stringify(resR6.stdout));
+
+      if (resR6.code === 0 && resR6.stdout.includes("32%") && resR6.stdout.includes("2h 2m")) {
+        console.log("✅ R6 passed!");
+      } else {
+        console.error("❌ R6 failed! Expected output to contain 32% and 2h 2m.");
+        testsPassed = false;
+      }
+    } finally {
+      safeRmTempHome(homeR6);
+    }
+
   } catch (err) {
     console.error("Test execution failed:", err);
     testsPassed = false;

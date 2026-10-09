@@ -1,9 +1,10 @@
 import { spawnSync, execSync } from 'child_process';
 import { writeFileSync, mkdirSync, readFileSync } from 'fs';
-import { dirname, join } from 'path';
+import path, { dirname, join } from 'path';
+import http from 'http';
 import https from 'https';
 import os from 'os';
-import { pathToFileURL } from 'url';
+import { pathToFileURL, fileURLToPath } from 'url';
 
 const CACHE_FILE = join(os.homedir(), '.gemini', 'tmp', 'real_quota_cache.json');
 
@@ -31,29 +32,56 @@ function findServerCandidates() {
   try {
     let output = '';
     const candidates = [];
+
+    // 0. Environment variables (Highest priority for Antigravity CLI / hooks)
+    const envToken = process.env.ANTIGRAVITY_CSRF_TOKEN || '';
+    const envLsAddr = process.env.ANTIGRAVITY_LS_ADDRESS || '';
+    if (envLsAddr || envToken) {
+      let envHost = '127.0.0.1';
+      let envPort = null;
+      if (envLsAddr) {
+        const parts = envLsAddr.split(':');
+        envHost = parts[0] || '127.0.0.1';
+        if (parts[1]) envPort = parseInt(parts[1], 10);
+      }
+      candidates.push({
+        pid: process.pid,
+        host: envHost,
+        port: envPort,
+        csrf_token: envToken,
+        score: 100,
+        kind: 'env'
+      });
+    }
+
     if (process.platform === 'win32') {
       try {
-        const psCmd = "powershell.exe -NoProfile -Command \"Get-CimInstance Win32_Process -Filter 'Name like ''%agy%'' or Name like ''%language_server%''' | Select-Object ProcessID, CommandLine | ConvertTo-Json -Compress\"";
+        const psCmd = "powershell.exe -NoProfile -Command \"Get-CimInstance Win32_Process -Filter 'Name like ''%antigravity%'' or Name like ''%agy%'' or Name like ''%language_server%''' | Select-Object ProcessID, Name, CommandLine | ConvertTo-Json -Compress\"";
         output = execSync(psCmd, { encoding: 'utf8', windowsHide: true }).trim();
         if (output) {
+          const jsonStart = output.search(/\[|\{/);
+          if (jsonStart !== -1) {
+            output = output.slice(jsonStart);
+          }
           let processes = JSON.parse(output);
           if (!Array.isArray(processes)) {
             processes = [processes];
           }
           for (const proc of processes) {
             const cmdLine = proc.CommandLine || '';
-            const pid = proc.ProcessID;
+            const pid = proc.ProcessId || proc.ProcessID;
             if (!pid) continue;
             
-            const lower = cmdLine.toLowerCase();
-            const isCli = lower.includes('agy') && !lower.includes('statusline-quota');
+            const lower = (cmdLine + ' ' + (proc.Name || '')).toLowerCase();
+            const isCli = (lower.includes('antigravity') || lower.includes('agy')) && !lower.includes('statusline-quota');
             const isLang = lower.includes('language_server');
             if (!isCli && !isLang) continue;
             
             const matchToken = cmdLine.match(/--csrf_token\s+([^\s"']+)/) || cmdLine.match(/--csrf_token=([^\s"']+)/);
-            const token = matchToken ? matchToken[1] : '';
+            const token = matchToken ? matchToken[1] : (envToken || '');
             candidates.push({
               pid: pid,
+              host: '127.0.0.1',
               csrf_token: token,
               score: (isCli ? 40 : 0) + (isLang ? 20 : 0) + (token ? 10 : 0),
               kind: isCli ? 'cli' : 'language_server'
@@ -61,13 +89,41 @@ function findServerCandidates() {
           }
         }
       } catch (e) {}
+
+      if (candidates.length <= (envLsAddr ? 1 : 0)) {
+        try {
+          const wmicOut = execSync('wmic process get processid,caption,commandline /format:csv', { encoding: 'utf8', windowsHide: true });
+          const lines = wmicOut.split('\n');
+          for (const line of lines) {
+            const lower = line.toLowerCase();
+            if (!lower.includes('language_server') && !lower.includes('agy') && !lower.includes('antigravity')) continue;
+            if (lower.includes('statusline-quota')) continue;
+            const parts = line.split(',');
+            if (parts.length >= 3) {
+              const pidStr = parts[parts.length - 1].trim();
+              const pid = parseInt(pidStr, 10);
+              if (!isNaN(pid)) {
+                const matchToken = line.match(/--csrf_token\s+([^\s"']+)/) || line.match(/--csrf_token=([^\s"']+)/);
+                const token = matchToken ? matchToken[1] : (envToken || '');
+                candidates.push({
+                  pid: pid,
+                  host: '127.0.0.1',
+                  csrf_token: token,
+                  score: 20 + (token ? 10 : 0),
+                  kind: 'language_server'
+                });
+              }
+            }
+          }
+        } catch (e) {}
+      }
     } else {
       try {
         output = execSync('ps auxww', { encoding: 'utf8', windowsHide: true });
         const lines = output.split('\n');
         for (const line of lines) {
           const lower = line.toLowerCase();
-          const isCli = /\bagy(\s|$)/.test(lower);
+          const isCli = (/\bagy(\s|$)/.test(lower) || lower.includes('antigravity-cli')) && !lower.includes('statusline-quota');
           const isLang = lower.includes('language_server');
           if (!isCli && !isLang) continue;
           const parts = line.trim().split(/\s+/);
@@ -76,9 +132,10 @@ function findServerCandidates() {
           if (isNaN(pid)) continue;
           
           const matchToken = line.match(/--csrf_token(?:=|\s+)([^\s"']+)/);
-          const token = matchToken ? matchToken[1] : '';
+          const token = matchToken ? matchToken[1] : (envToken || '');
           candidates.push({
             pid,
+            host: '127.0.0.1',
             csrf_token: token,
             score: (isCli ? 40 : 0) + (isLang ? 20 : 0) + (token ? 10 : 0) - (lower.includes('/applications/antigravity.app') ? 10 : 0),
             kind: isCli ? 'cli' : 'language_server'
@@ -114,36 +171,32 @@ function getListeningPorts(pid) {
   return ports.sort((a, b) => a - b);
 }
 
-function requestUserStatus(port, csrfToken) {
-  return new Promise((resolve, reject) => {
-    const postData = JSON.stringify({
-      metadata: { ideName: 'antigravity', extensionName: 'antigravity', locale: 'en' }
-    });
-    
-    const options = {
-      hostname: '127.0.0.1',
-      port: port,
-      path: '/exa.language_server_pb.LanguageServerService/GetUserStatus',
-      method: 'POST',
-      rejectUnauthorized: false,
-      timeout: 2000,
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-        'Connect-Protocol-Version': '1',
-        'X-Codeium-Csrf-Token': csrfToken,
-        'Content-Length': Buffer.byteLength(postData)
-      }
-    };
+function sendServiceRequest(host, port, pathName, csrfToken, postData) {
+  const options = {
+    hostname: host || '127.0.0.1',
+    port: port,
+    path: pathName,
+    method: 'POST',
+    rejectUnauthorized: false,
+    timeout: 2000,
+    headers: {
+      'Accept': 'application/json',
+      'Content-Type': 'application/json',
+      'Connect-Protocol-Version': '1',
+      'X-Codeium-Csrf-Token': csrfToken,
+      'Content-Length': Buffer.byteLength(postData)
+    }
+  };
 
-    const req = https.request(options, (res) => {
+  const execute = (mod) => new Promise((resolve, reject) => {
+    const req = mod.request(options, (res) => {
       let data = '';
       res.on('data', (chunk) => data += chunk);
       res.on('end', () => {
         if (res.statusCode >= 200 && res.statusCode < 300) {
           try {
             resolve(JSON.parse(data));
-          } catch(e) { reject(e); }
+          } catch (e) { reject(e); }
         } else {
           reject(new Error(`HTTP ${res.statusCode}`));
         }
@@ -154,54 +207,32 @@ function requestUserStatus(port, csrfToken) {
     req.write(postData);
     req.end();
   });
+
+  // Try HTTPS first, if TLS/protocol error occurs, fallback to HTTP (and vice-versa)
+  return execute(https).catch((err) => {
+    return execute(http);
+  });
+}
+
+function requestUserStatus(port, csrfToken, host = '127.0.0.1') {
+  const postData = JSON.stringify({
+    metadata: { ideName: 'antigravity', extensionName: 'antigravity', locale: 'en' }
+  });
+  return sendServiceRequest(host, port, '/exa.language_server_pb.LanguageServerService/GetUserStatus', csrfToken, postData);
 }
 
 /**
  * Sends a request to retrieve the weekly quota summary from the language server.
  * @param {number} port - The port number of the active language server.
  * @param {string} csrfToken - The CSRF token for request authentication.
+ * @param {string} [host='127.0.0.1'] - The host address.
  * @returns {Promise<object>} A promise resolving to the parsed response JSON object.
  */
-function requestQuotaSummary(port, csrfToken) {
-  return new Promise((resolve, reject) => {
-    const postData = JSON.stringify({
-      metadata: { ideName: 'antigravity', extensionName: 'antigravity', locale: 'en' }
-    });
-
-    const options = {
-      hostname: '127.0.0.1',
-      port: port,
-      path: '/exa.language_server_pb.LanguageServerService/RetrieveUserQuotaSummary',
-      method: 'POST',
-      rejectUnauthorized: false,
-      timeout: 2000,
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-        'Connect-Protocol-Version': '1',
-        'X-Codeium-Csrf-Token': csrfToken,
-        'Content-Length': Buffer.byteLength(postData)
-      }
-    };
-
-    const req = https.request(options, (res) => {
-      let data = '';
-      res.on('data', (chunk) => data += chunk);
-      res.on('end', () => {
-        if (res.statusCode >= 200 && res.statusCode < 300) {
-          try {
-            resolve(JSON.parse(data));
-          } catch(e) { reject(e); }
-        } else {
-          reject(new Error(`HTTP ${res.statusCode}`));
-        }
-      });
-    });
-    req.on('error', (e) => reject(e));
-    req.on('timeout', () => { req.destroy(); reject(new Error('timeout')); });
-    req.write(postData);
-    req.end();
+function requestQuotaSummary(port, csrfToken, host = '127.0.0.1') {
+  const postData = JSON.stringify({
+    metadata: { ideName: 'antigravity', extensionName: 'antigravity', locale: 'en' }
   });
+  return sendServiceRequest(host, port, '/exa.language_server_pb.LanguageServerService/RetrieveUserQuotaSummary', csrfToken, postData);
 }
 
 /**
@@ -252,20 +283,70 @@ export function parseWeeklyBuckets(summaryResponse) {
   return weekly;
 }
 
+/**
+ * Extracts short-term (5h / 3h / hourly) quota buckets from a RetrieveUserQuotaSummary response.
+ * @param {object} summaryResponse - The parsed JSON response object from the language server.
+ * @returns {Object<string, {remaining_percentage: number, reset_time?: string, refreshes_in?: string}>} Map of short-term pool remaining quota, reset time, and formatted refresh countdown.
+ */
+export function parseShortTermBuckets(summaryResponse) {
+  const shortTerm = {};
+  if (!summaryResponse) return shortTerm;
+  const resObj = summaryResponse.response || summaryResponse;
+  if (!resObj.groups) return shortTerm;
+  for (const group of resObj.groups) {
+    if (!group.buckets) continue;
+    for (const bucket of group.buckets) {
+      const windowVal = bucket.window || bucket.windowVal || '';
+      if (windowVal === 'weekly') continue;
+      const bucketId = bucket.bucketId || '';
+      if (!bucketId) continue;
+      const pool = bucketId.replace(/-(5h|3h|hourly|shortterm)$/, '');
+
+      let fraction = 1;
+      const remainingField = bucket.remainingFraction !== undefined ? bucket.remainingFraction : bucket.remaining;
+      if (remainingField !== undefined && remainingField !== null) {
+        fraction = parseFloat(remainingField);
+      } else if (bucket.resetTime || bucket.reset) {
+        fraction = 0;
+      }
+
+      const remainingNum = fraction > 1 ? fraction : fraction * 100;
+      const remaining = Math.max(0, Math.min(100, remainingNum));
+
+      const entry = {
+        remaining_percentage: remaining
+      };
+
+      const resetTime = bucket.resetTime || bucket.reset;
+      if (resetTime) {
+        entry.reset_time = resetTime;
+        entry.refreshes_in = formatResetTime(resetTime);
+      }
+
+      if (!shortTerm[pool] || entry.remaining_percentage < shortTerm[pool].remaining_percentage) {
+        shortTerm[pool] = entry;
+      }
+    }
+  }
+  return shortTerm;
+}
+
 async function fetchLiveQuotaCache() {
   const candidates = findServerCandidates();
   // 跨所有候選者合併模型資料，避免只取到部分模型
   const allModels = {};
   const weekly = {};
+  const shortTerm = {};
   let accountEmail = '';
   let planTierName = '';
   let planStatusData = {};
   
   for (const info of candidates) {
-    const ports = getListeningPorts(info.pid);
+    const host = info.host || '127.0.0.1';
+    const ports = info.port ? [info.port] : getListeningPorts(info.pid);
     for (const port of ports) {
       try {
-        const response = await requestUserStatus(port, info.csrf_token);
+        const response = await requestUserStatus(port, info.csrf_token, host);
         const userStatus = response.userStatus || {};
         
         if (userStatus.email) accountEmail = userStatus.email;
@@ -309,25 +390,32 @@ async function fetchLiveQuotaCache() {
 
         // Fetch RetrieveUserQuotaSummary
         try {
-          const summaryResponse = await requestQuotaSummary(port, info.csrf_token);
+          const summaryResponse = await requestQuotaSummary(port, info.csrf_token, host);
           const weeklyBuckets = parseWeeklyBuckets(summaryResponse);
           for (const pool of Object.keys(weeklyBuckets)) {
             if (!weekly[pool] || weeklyBuckets[pool].remaining_percentage < weekly[pool].remaining_percentage) {
               weekly[pool] = weeklyBuckets[pool];
             }
           }
+          const shortTermBuckets = parseShortTermBuckets(summaryResponse);
+          for (const pool of Object.keys(shortTermBuckets)) {
+            if (!shortTerm[pool] || shortTermBuckets[pool].remaining_percentage < shortTerm[pool].remaining_percentage) {
+              shortTerm[pool] = shortTermBuckets[pool];
+            }
+          }
         } catch (weeklyErr) {
-          // weekly failure never breaks the 5h path
+          // weekly/shortTerm failure never breaks the main path
         }
       } catch (e) {
         continue;
       }
     }
   }
-  if (Object.keys(allModels).length > 0 || Object.keys(weekly).length > 0) {
+  if (Object.keys(allModels).length > 0 || Object.keys(weekly).length > 0 || Object.keys(shortTerm).length > 0) {
     return { 
       models: allModels, 
       weekly,
+      shortTerm,
       updatedAt: Date.now(),
       email: accountEmail,
       planTier: planTierName,
@@ -356,7 +444,18 @@ async function main() {
   } catch (e) {}
 }
 
+function isDirectExecution() {
+  if (!process.argv[1]) return false;
+  try {
+    const scriptPath = process.argv[1];
+    const metaPath = fileURLToPath(import.meta.url);
+    return path.resolve(scriptPath).toLowerCase() === path.resolve(metaPath).toLowerCase();
+  } catch (e) {
+    return false;
+  }
+}
+
 // only auto-run when executed directly, not when imported by tests
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (isDirectExecution()) {
   main();
 }
