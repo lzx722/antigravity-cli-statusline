@@ -267,10 +267,13 @@ let lang = 'zh-tw';
 let selectedStr = '[]';
 let orderStr = '';
 let workspacePath = '';
+let keepItems = false;
 
 for (let i = 2; i < process.argv.length; i++) {
   if (process.argv[i] === '--lang' && process.argv[i + 1]) {
     lang = process.argv[++i];
+  } else if (process.argv[i] === '--keep-items') {
+    keepItems = true;
   } else if (process.argv[i] === '--selected') {
     const tokens = [];
     while (i + 1 < process.argv.length && !process.argv[i + 1].startsWith('--')) {
@@ -418,7 +421,11 @@ function updateSettings(settingsPath) {
   settings.ui.language = lang;
   
   if (!settings.ui.footer) settings.ui.footer = {};
-  settings.ui.footer.items = items;
+  if (!keepItems || !Array.isArray(settings.ui.footer.items) || settings.ui.footer.items.length === 0) {
+    settings.ui.footer.items = items;
+  } else {
+    console.log(`[保留設定] 沿用既有指標與排序排版：${JSON.stringify(settings.ui.footer.items)}`);
+  }
   
   settings.statusLine = {
     enabled: true,
