@@ -56,7 +56,7 @@ agy plugin install https://github.com/lzx722/antigravity-cli-statusline
 /antigravity-cli-statusline
 ```
 
-技能會引導你選擇語系（`zh-cn` / `zh-tw` / `us` / `jp`）、勾選指標、排序，並把渲染腳本部署到位、寫入三層 `settings.json`。狀態列**熱更新立即生效**，無需重啟 CLI。
+技能會引導你選擇語系（`zh-cn` / `zh-tw` / `us` / `jp`）、勾選指標、排序，並把渲染腳本部署到位、寫入三層 `settings.json`。若系統已存在既有指標配置，向導會主動提供「保留現有配置與排版」快捷選項，一鍵直接部署更新。狀態列**熱更新立即生效**，無需重啟 CLI。
 
 ---
 

@@ -42,7 +42,7 @@ In the Antigravity CLI prompt, type:
 /antigravity-cli-statusline
 ```
 
-The skill walks you through language selection (`zh-cn` / `zh-tw` / `us` / `jp`), indicator picking, and sorting, then deploys the renderer scripts and writes the three-layer `settings.json`. The statusline updates **live without a CLI restart**.
+The skill walks you through language selection (`zh-cn` / `zh-tw` / `us` / `jp`), indicator picking, and sorting, then deploys the renderer scripts and writes the three-layer `settings.json`. If existing statusline configuration is detected, the skill offers a convenient shortcut to keep your existing metrics and layout directly. The statusline updates **live without a CLI restart**.
 
 ---
 
