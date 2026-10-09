@@ -8,6 +8,8 @@ import { pathToFileURL, fileURLToPath } from 'url';
 
 const CACHE_FILE = join(os.homedir(), '.gemini', 'tmp', 'real_quota_cache.json');
 
+const portProtocolMap = new Map();
+
 function formatResetTime(resetTimeStr) {
   try {
     const reset = new Date(resetTimeStr);
@@ -36,22 +38,23 @@ function findServerCandidates() {
     // 0. Environment variables (Highest priority for Antigravity CLI / hooks)
     const envToken = process.env.ANTIGRAVITY_CSRF_TOKEN || '';
     const envLsAddr = process.env.ANTIGRAVITY_LS_ADDRESS || '';
-    if (envLsAddr || envToken) {
+    if (envLsAddr && envToken) {
       let envHost = '127.0.0.1';
       let envPort = null;
-      if (envLsAddr) {
-        const parts = envLsAddr.split(':');
-        envHost = parts[0] || '127.0.0.1';
-        if (parts[1]) envPort = parseInt(parts[1], 10);
+      const parts = envLsAddr.split(':');
+      envHost = parts[0] || '127.0.0.1';
+      if (parts[1]) envPort = parseInt(parts[1], 10);
+      if (envPort) {
+        // Fast path: Exact host, port, and token are already known from environment
+        return [{
+          pid: process.pid,
+          host: envHost,
+          port: envPort,
+          csrf_token: envToken,
+          score: 100,
+          kind: 'env'
+        }];
       }
-      candidates.push({
-        pid: process.pid,
-        host: envHost,
-        port: envPort,
-        csrf_token: envToken,
-        score: 100,
-        kind: 'env'
-      });
     }
 
     if (process.platform === 'win32') {
@@ -90,7 +93,7 @@ function findServerCandidates() {
         }
       } catch (e) {}
 
-      if (candidates.length <= (envLsAddr ? 1 : 0)) {
+      if (candidates.length === 0) {
         try {
           const wmicOut = execSync('wmic process get processid,caption,commandline /format:csv', { encoding: 'utf8', windowsHide: true });
           const lines = wmicOut.split('\n');
@@ -171,24 +174,41 @@ function getListeningPorts(pid) {
   return ports.sort((a, b) => a - b);
 }
 
-function sendServiceRequest(host, port, pathName, csrfToken, postData) {
-  const options = {
-    hostname: host || '127.0.0.1',
-    port: port,
-    path: pathName,
-    method: 'POST',
-    rejectUnauthorized: false,
-    timeout: 2000,
-    headers: {
-      'Accept': 'application/json',
-      'Content-Type': 'application/json',
-      'Connect-Protocol-Version': '1',
-      'X-Codeium-Csrf-Token': csrfToken,
-      'Content-Length': Buffer.byteLength(postData)
-    }
-  };
+function isTlsHandshakeError(err) {
+  if (!err) return false;
+  const code = err.code || '';
+  const msg = err.message || '';
+  return (
+    code === 'EPROTO' ||
+    code === 'ERR_SSL_WRONG_VERSION_NUMBER' ||
+    msg.includes('wrong version number') ||
+    msg.includes('SSL routines') ||
+    msg.includes('packet length too long') ||
+    msg.includes('record header')
+  );
+}
 
-  const execute = (mod) => new Promise((resolve, reject) => {
+function sendServiceRequest(host, port, pathName, csrfToken, postData) {
+  const hostVal = host || '127.0.0.1';
+  const targetKey = `${hostVal}:${port}`;
+
+  const makeReq = (mod) => new Promise((resolve, reject) => {
+    const options = {
+      hostname: hostVal,
+      port: port,
+      path: pathName,
+      method: 'POST',
+      rejectUnauthorized: false,
+      timeout: 2000,
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        'Connect-Protocol-Version': '1',
+        'X-Codeium-Csrf-Token': csrfToken,
+        'Content-Length': Buffer.byteLength(postData)
+      }
+    };
+
     const req = mod.request(options, (res) => {
       let data = '';
       res.on('data', (chunk) => data += chunk);
@@ -198,7 +218,9 @@ function sendServiceRequest(host, port, pathName, csrfToken, postData) {
             resolve(JSON.parse(data));
           } catch (e) { reject(e); }
         } else {
-          reject(new Error(`HTTP ${res.statusCode}`));
+          const err = new Error(`HTTP ${res.statusCode}`);
+          err.statusCode = res.statusCode;
+          reject(err);
         }
       });
     });
@@ -208,9 +230,27 @@ function sendServiceRequest(host, port, pathName, csrfToken, postData) {
     req.end();
   });
 
-  // Try HTTPS first, if TLS/protocol error occurs, fallback to HTTP (and vice-versa)
-  return execute(https).catch((err) => {
-    return execute(http);
+  const knownProto = portProtocolMap.get(targetKey);
+  if (knownProto === 'http') {
+    return makeReq(http);
+  }
+  if (knownProto === 'https') {
+    return makeReq(https);
+  }
+
+  // Not known yet: probe with https
+  return makeReq(https).then((res) => {
+    portProtocolMap.set(targetKey, 'https');
+    return res;
+  }).catch((err) => {
+    // Only fallback to HTTP if it is an actual TLS handshake failure (e.g. connecting with HTTPS to an HTTP port).
+    // Never fallback to HTTP if TLS handshake succeeded and the server returned an HTTP status (e.g. 400, 401, 404, 500),
+    // because sending plaintext HTTP to an HTTPS server triggers "client sent an HTTP request to an HTTPS server".
+    if (isTlsHandshakeError(err)) {
+      portProtocolMap.set(targetKey, 'http');
+      return makeReq(http);
+    }
+    throw err;
   });
 }
 
@@ -333,7 +373,6 @@ export function parseShortTermBuckets(summaryResponse) {
 
 async function fetchLiveQuotaCache() {
   const candidates = findServerCandidates();
-  // 跨所有候選者合併模型資料，避免只取到部分模型
   const allModels = {};
   const weekly = {};
   const shortTerm = {};
@@ -358,13 +397,12 @@ async function fetchLiveQuotaCache() {
         const cascade = userStatus.cascadeModelConfigData || {};
         for (const model of cascade.clientModelConfigs || []) {
           const quotaInfo = model.quotaInfo;
-          if (!quotaInfo) continue; // 沒有 quotaInfo 視為不受限，或不需處理
+          if (!quotaInfo) continue;
           
           let fraction = 1;
           if (quotaInfo.remainingFraction !== undefined) {
             fraction = parseFloat(quotaInfo.remainingFraction);
           } else if (quotaInfo.resetTime) {
-            // 如果有 resetTime 但沒有 remainingFraction，表示 protobuf 將 0 省略了
             fraction = 0;
           } else {
             continue;
@@ -382,7 +420,6 @@ async function fetchLiveQuotaCache() {
             entry.refreshes_in = formatResetTime(quotaInfo.resetTime);
           }
           const normKey = label.toLowerCase().replace(/[^a-z0-9]+/g, '');
-          // 若同一模型已存在，以最新（較低）的額度為準
           if (!allModels[normKey] || entry.remaining_percentage < allModels[normKey].remaining_percentage) {
             allModels[normKey] = entry;
           }
@@ -406,11 +443,22 @@ async function fetchLiveQuotaCache() {
         } catch (weeklyErr) {
           // weekly/shortTerm failure never breaks the main path
         }
+
+        // If this port successfully yielded quota data, stop querying other ports on this candidate
+        if (Object.keys(allModels).length > 0 || Object.keys(weekly).length > 0 || Object.keys(shortTerm).length > 0) {
+          break;
+        }
       } catch (e) {
         continue;
       }
     }
+
+    // If quota was successfully retrieved from this candidate, stop probing remaining candidates
+    if (Object.keys(allModels).length > 0 || Object.keys(weekly).length > 0 || Object.keys(shortTerm).length > 0) {
+      break;
+    }
   }
+
   if (Object.keys(allModels).length > 0 || Object.keys(weekly).length > 0 || Object.keys(shortTerm).length > 0) {
     return { 
       models: allModels, 
