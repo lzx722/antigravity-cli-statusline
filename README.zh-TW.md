@@ -77,7 +77,7 @@ agy plugin install https://github.com/lzx722/antigravity-cli-statusline
 - **每週 API 額度與重置倒數合併（`quota-weekly-countdown`）**：如 `📅 [███░░░] 57%（⏳2d 19h）`
 - **目前對話已消耗的脈絡比例與進度條（`context-used`）**：如 `📚 [░░░░░░] 0.0%`
 - **目前 Session 消耗的精確 Token 數量（`token-count`）**：如 `🪙 0 / 1.0M`
-- **本次對話 AI 累計產出的工件數（`artifacts`）**：如 `📦 0 工件數`
+- **本次對話 AI 累計產出的檔案數量（`artifacts`）**：如 `📦 0 檔案數量`
 - **目前訂閱方案等級（`plan-tier`）**：如 `👑 Google AI Pro`
 
 **互動狀態**

@@ -151,7 +151,7 @@ async function main() {
         console.error(`- 待處理輸入 (11, 紅色): ${p1 ? 'OK' : 'FAIL'}`);
         console.error(`- 背景任務 (12, 紅色): ${p2 ? 'OK' : 'FAIL'}`);
         console.error(`- 子代理 (13, 紅色): ${p3 ? 'OK' : 'FAIL'}`);
-        console.error(`- 工件數 (14, BOLD): ${p4 ? 'OK' : 'FAIL'}`);
+        console.error(`- 檔案數量 (14, BOLD): ${p4 ? 'OK' : 'FAIL'}`);
         testsPassed = false;
       }
     }
@@ -203,7 +203,7 @@ async function main() {
         console.error(`- 待處理輸入 (2, 綠色): ${p1 ? 'OK' : 'FAIL'}`);
         console.error(`- 背景任務 (3, 黃色): ${p2 ? 'OK' : 'FAIL'}`);
         console.error(`- 子代理 (4, 黃色): ${p3 ? 'OK' : 'FAIL'}`);
-        console.error(`- 工件數 (5, BOLD): ${p4 ? 'OK' : 'FAIL'}`);
+        console.error(`- 檔案數量 (5, BOLD): ${p4 ? 'OK' : 'FAIL'}`);
         testsPassed = false;
       }
     }
@@ -318,7 +318,7 @@ async function main() {
         console.error(`- 待處理輸入 (8, 紅色): ${p1 ? 'OK' : 'FAIL'}`);
         console.error(`- 背景任務 (6, 紅色): ${p2 ? 'OK' : 'FAIL'}`);
         console.error(`- 子代理 (${expectedSubagents}, 配色): ${p3 ? 'OK' : 'FAIL'}`);
-        console.error(`- 工件數 (7, BOLD): ${p4 ? 'OK' : 'FAIL'}`);
+        console.error(`- 檔案數量 (7, BOLD): ${p4 ? 'OK' : 'FAIL'}`);
         testsPassed = false;
       }
     }
@@ -375,7 +375,7 @@ async function main() {
         console.error(`- 待處理輸入 (0, 藍色): ${p1_3 ? 'OK' : 'FAIL'}`);
         console.error(`- 背景任務 (0, 藍色): ${p2_3 ? 'OK' : 'FAIL'}`);
         console.error(`- 子代理 (0, 藍色): ${p3_3 ? 'OK' : 'FAIL'}`);
-        console.error(`- 工件數 (0, BOLD): ${p4_3 ? 'OK' : 'FAIL'}`);
+        console.error(`- 檔案數量 (0, BOLD): ${p4_3 ? 'OK' : 'FAIL'}`);
         testsPassed = false;
       }
     }
@@ -587,8 +587,8 @@ async function main() {
         return false;
       } finally {
         try {
-          rmSync(home, { recursive: true, force: true });
-        } catch (e) {}
+          rmSync(home, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+        } catch (_) {}
       }
     };
 
