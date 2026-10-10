@@ -290,20 +290,31 @@ let lang = 'zh-tw';
 let selectedStr = '[]';
 let orderStr = '';
 let workspacePath = '';
+let keepItems = false;
 
 for (let i = 2; i < process.argv.length; i++) {
   if (process.argv[i] === '--lang' && process.argv[i + 1]) {
-    lang = process.argv[i + 1];
-    i++;
-  } else if (process.argv[i] === '--selected' && process.argv[i + 1]) {
-    selectedStr = process.argv[i + 1];
-    i++;
-  } else if (process.argv[i] === '--order' && process.argv[i + 1]) {
-    orderStr = process.argv[i + 1];
-    i++;
-  } else if (process.argv[i] === '--workspace' && process.argv[i + 1]) {
-    workspacePath = process.argv[i + 1];
-    i++;
+    lang = process.argv[++i];
+  } else if (process.argv[i] === '--keep-items') {
+    keepItems = true;
+  } else if (process.argv[i] === '--selected') {
+    const tokens = [];
+    while (i + 1 < process.argv.length && !process.argv[i + 1].startsWith('--')) {
+      tokens.push(process.argv[++i]);
+    }
+    selectedStr = tokens.join(' ');
+  } else if (process.argv[i] === '--order') {
+    const tokens = [];
+    while (i + 1 < process.argv.length && !process.argv[i + 1].startsWith('--')) {
+      tokens.push(process.argv[++i]);
+    }
+    orderStr = tokens.join(' ');
+  } else if (process.argv[i] === '--workspace') {
+    const tokens = [];
+    while (i + 1 < process.argv.length && !process.argv[i + 1].startsWith('--')) {
+      tokens.push(process.argv[++i]);
+    }
+    workspacePath = tokens.join(' ');
   }
 }
 
@@ -320,7 +331,13 @@ let selectedList = [];
 try {
   selectedList = JSON.parse(selectedStr.replace(/^\uFEFF/, ''));
 } catch (e) {
-  console.error('解析 --selected JSON 字串失敗：', e);
+  // 如果 JSON 解析失敗（例如 Windows 命令列引號脫逸導致），嘗試直接萃取中英文括號中的識別碼
+  const idMatches = [...selectedStr.matchAll(/[\(（]([a-z0-9-]+)[\)）]/gi)].map(m => m[1]);
+  if (idMatches.length > 0) {
+    selectedList = idMatches;
+  } else if (selectedStr && selectedStr !== '[]') {
+    selectedList = selectedStr.split(',').map(s => s.trim().replace(/^['"\[\]]+|['"\[\]]+$/g, '')).filter(Boolean);
+  }
 }
 
 // 提取英文識別碼
@@ -433,7 +450,11 @@ function updateSettings(settingsPath) {
   settings.ui.language = lang;
   
   if (!settings.ui.footer) settings.ui.footer = {};
-  settings.ui.footer.items = items;
+  if (!keepItems || !Array.isArray(settings.ui.footer.items) || settings.ui.footer.items.length === 0) {
+    settings.ui.footer.items = items;
+  } else {
+    console.log(`[保留設定] 沿用既有指標與排序排版：${JSON.stringify(settings.ui.footer.items)}`);
+  }
   
   settings.statusLine = {
     enabled: true,
@@ -550,7 +571,9 @@ if (process.platform === 'win32') {
       }
 
       if (!fs.existsSync(destShPath)) {
-        if (lang === 'zh-tw') {
+        if (lang === 'zh-cn') {
+          console.warn('警告：sh.exe 编译失败，请检查权限是否充足，或尝试以管理员权限重新配置。');
+        } else if (lang === 'zh-tw') {
           console.warn('警告：sh.exe 編譯失敗，請檢查權限是否足夠，或嘗試以系統管理員權限重新設定。');
         } else if (lang === 'zh-cn') {
           console.warn('警告：sh.exe 编译失败，请检查权限是否足够，或尝试以管理员权限重新设置。');

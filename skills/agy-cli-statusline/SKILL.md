@@ -1,6 +1,6 @@
 ---
 name: antigravity-cli-statusline:agy-cli-statusline
-description: 本技能用於設定 Antigravity 命令列介面（CLI）（agy）的狀態列（Statusline / Footer）顯示指標、顯示順序與多語系介面（繁體中文 zh-tw / 简体中文 zh-cn / English us / 日本語 jp），並自動部署跨平台 Node.js 掛鉤（Hook）腳本（statusline-quota.mjs、fetch-local-quota.mjs）至 ~/.gemini/antigravity-cli/hooks/，同步註冊三層 settings.json（全域、命令列介面（CLI）專屬、專案）與 trusted_hooks.json 信任機制。適用情境：使用者要求設定 / 客製化 / 啟用命令列介面（CLI）狀態列、調整命令列介面（CLI）頁尾顯示項目、顯示應用程式介面（API）額度 / 權杖（Token）用量 / 上下文（Context）消耗 / Git 分支 / 工作區是否乾淨（dirty）/ VCS 類型 / 人工智慧（AI）模型名稱 / 代理狀態（agent state）/ 等你回應的工具確認對話方塊（Dialog Box） / 輸入佇列 / 背景任務 / 子代理數 / 檔案數量（Artifacts） / 沙盒模式 / 命令列介面（CLI）版本 / 對話識別碼（ID） / 使用中代理（agent profile）/ 隨機存取記憶體（RAM）記憶體用量 / 訂閱方案等指標於命令列介面（CLI）底部、切換狀態列語言、在新電腦上啟用此狀態列，或使用者主動以 /antigravity-cli-statusline:agy-cli-statusline 觸發本技能時。支援 macOS、Linux、Windows（含 Windows 10 / 11）跨平台環境，並於 Windows 上自動處理 sh.exe 缺失、UTF-8 位元組順序記號（BOM）污染、wmic 棄用等系統陷阱。
+description: 本技能用於設定 Antigravity 命令列介面（CLI）（agy）的狀態列（Statusline / Footer）顯示指標、顯示順序與多語系介面（簡體中文 zh-cn / 繁體中文 zh-tw / English us / 日本語 jp），並自動部署跨平台 Node.js 掛鉤（Hook）腳本（statusline-quota.mjs、fetch-local-quota.mjs）至 ~/.gemini/antigravity-cli/hooks/，同步註冊三層 settings.json（全域、命令列介面（CLI）專屬、專案）與 trusted_hooks.json 信任機制。適用情境：使用者要求設定 / 客製化 / 啟用命令列介面（CLI）狀態列、調整命令列介面（CLI）頁尾顯示項目、顯示應用程式介面（API）額度 / 權杖（Token）用量 / 上下文（Context）消耗 / Git 分支 / 工作區是否乾淨（dirty）/ VCS 類型 / 人工智慧（AI）模型名稱 / 代理狀態（agent state）/ 等你回應的工具確認對話方塊（Dialog Box） / 輸入佇列 / 背景任務 / 子代理數 / 檔案數量（Artifacts） / 沙盒模式 / 命令列介面（CLI）版本 / 對話識別碼（ID） / 使用中代理（agent profile）/ 隨機存取記憶體（RAM）記憶體用量 / 訂閱方案等指標於命令列介面（CLI）底部、切換狀態列語言、在新電腦上啟用此狀態列，或使用者主動以 /antigravity-cli-statusline 或 /antigravity-cli-statusline:agy-cli-statusline 觸發本技能時。支援 macOS、Linux、Windows（含 Windows 10 / 11）跨平台環境，並於 Windows 上自動處理 sh.exe 缺失、UTF-8 位元組順序記號（BOM）污染、wmic 棄用等系統陷阱。
 ---
 
 # Antigravity 狀態列設定技能
@@ -90,8 +90,8 @@ Windows 平台的 位元組順序記號（BOM）鐵則、`sh.exe` 越獄、`csc.
     {
       "question": "選擇顯示語系 / 选择显示语言 / Select Display Language / 表示言語の選択",
       "options": [
-        "繁體中文 (zh-tw)",
         "简体中文 (zh-cn)",
+        "繁體中文 (zh-tw)",
         "English (us)",
         "日本語 (jp)"
       ],
@@ -103,7 +103,7 @@ Windows 平台的 位元組順序記號（BOM）鐵則、`sh.exe` 越獄、`csc.
 }
 ```
 
-選擇完成後，**將所選語言代碼（`zh-tw` / `zh-cn` / `us` / `jp`）記錄為本次執行的鎖定語系**，並依「🌐 語言鎖定規則」於後續所有步驟使用該語系撰寫對話輸出。
+選擇完成後，**將所選語言代碼（`zh-cn` / `zh-tw` / `us` / `jp`）記錄為本次執行的鎖定語系**，並依「🌐 語言鎖定規則」於後續所有步驟使用該語系撰寫對話輸出。
 
 ### 步驟 2：Node.js 預檢 + 三層設定檔讀取
 
@@ -162,12 +162,26 @@ Windows 平台的 位元組順序記號（BOM）鐵則、`sh.exe` 越獄、`csc.
 
 **【動態解析三層設定檔】**：在 Node.js 預檢通過（或使用者選擇繼續）後，動態展開 `$HOME` / `USERPROFILE`，讀取三層 `settings.json`。檢查目前 `ui.footer.items` 啟用了哪些項目、`ui.language` 設定，以及各設定檔中是否存在空的或殘缺的 `statusLine` 物件（如 `{ "type": "", "command": "", "enabled": true }`）。
 
+**【既有指標配置快速復用檢測（快捷通道）】**：
+若在讀取的 `settings.json` 中發現既有的 `ui.footer.items` 且長度大於 0（代表使用者此前已完成過指標勾選與排序配置）：
+呼叫 `ask_question`（以步驟 1 鎖定的語系撰寫）詢問使用者是否要直接復用現有指標與排版設定：
+- 簡體中文 (`zh-cn`)：問題 `检测到当前已有配置好的状态栏指标与排版顺序。\n\n是否直接沿用现有配置并部署更新，还是重新自定义勾选与排序？`，選項：`["(Recommended) 保留现有配置与排版（直接更新部署脚本）", "重新自定义勾选与排序"]`。
+- 繁體中文 (`zh-tw`)：問題 `偵測到系統已有現成的狀態列配置（已啟用指標與排序版式）。\n\n是否直接沿用現有指標與排版設定並部署更新，還是重新自訂選擇與排序指標？`，選項：`["(Recommended) 保留現有配置與排版（直接更新部署腳本）", "重新自訂選擇與排序指標"]`。
+- 英文 (`us`)：問題 `Existing statusline configuration (metrics and layout) detected.\n\nKeep existing configuration and deploy updated scripts, or reconfigure metrics and ordering?`，選項：`["(Recommended) Keep existing metrics and layout (deploy updated scripts directly)", "Reconfigure metrics and ordering"]`。
+- 日本語 (`jp`)：問題 `既存のステータスライン設定（指標と並び順）が検出されました。\n\n既存の設定を維持してスクリプトを更新しますか？それとも指標を再設定しますか？`，選項：`["(Recommended) 既存の設定とレイアウトを維持（更新スクリプトを直接適用）", "指標と並び順を再設定する"]`。
+
+- ✅ **若使用者選擇「保留現有配置與排版」**：
+  **直接跳過步驟 3 與步驟 4**，直達**步驟 5**，執行指令時加上 `--keep-items` 旗標：
+  `node skills/agy-cli-statusline/scripts/configure-statusline.mjs --lang "<步驟1選定的語言>" --keep-items --workspace "<當前工作區絕對路徑>"`
+- 🔄 **若使用者選擇「重新自訂」或設定檔中無現有指標配置**：
+  正常進入步驟 3 與步驟 4。
+
 **【Windows 平台額外步驟：位元組順序記號（BOM）預檢】**：讀取每份 `settings.json` 與 `trusted_hooks.json` 時，必須檢查檔案前 3 個位元組是否為 `EF BB BF`（UTF-8 位元組順序記號（BOM））。若是，記錄該檔案路徑為「需於步驟 5 自動修復」的目標。詳見 [references/windows.md §1](references/windows.md) 與 §3。
 
 ### 步驟 3：第二階段問卷（讀取 questions.json 與勾選指標）
 
 1. **讀取靜態問卷**：人工智慧（AI）代理必須優先讀取本外掛目錄底下的 `skills/agy-cli-statusline/resources/questions.json` 檔案。
-2. **根據步驟 1 的語言代碼（`zh-tw` / `zh-cn` / `us` / `jp`）**，從 `questions.json` 中讀取對應語系的問卷資訊，呼叫 `ask_question`。
+2. **根據步驟 1 的語言代碼（`zh-cn` / `zh-tw` / `us` / `jp`）**，從 `questions.json` 中讀取對應語系的問卷資訊，呼叫 `ask_question`。
 
 請動態將選定語系的 `options` 內容填入（問卷問題及摘要也請使用對應語系）：
    ```json
@@ -176,7 +190,7 @@ Windows 平台的 位元組順序記號（BOM）鐵則、`sh.exe` 越獄、`csc.
        {
          "question": "<請填入對應語系的提問，例如: 選擇要顯示的狀態列指標（下一步將進行排序）>",
          "options": [
-            // 從 resources/questions.json 讀取對應語系（如 zh-tw, zh-cn, us 或 jp）的 options 陣列並在此展開
+            // 從 resources/questions.json 讀取對應語系（如 zh-cn, zh-tw, us 或 jp）的 options 陣列並在此展開
          ],
          "is_multi_select": true
        }
