@@ -555,11 +555,17 @@ async function main() {
       if (tcVal === 'plan') expectedColor = GREEN;
       else if (tcVal === 'accept-edits') expectedColor = YELLOW;
 
-      const regexMode = new RegExp(
-        escapeRegex(tc.expectedLabel) + ".*?" + 
-        escapeRegex(expectedColor) + escapeRegex(BOLD) + 
-        escapeRegex(tc.expectedValue) + escapeRegex(RESET)
-      );
+      const regexMode = (tc.lang === 'zh-cn')
+        ? new RegExp(
+            escapeRegex(expectedColor) + escapeRegex(BOLD) + 
+            escapeRegex(tc.expectedValue) + ".*?" + 
+            escapeRegex(tc.expectedLabel)
+          )
+        : new RegExp(
+            escapeRegex(tc.expectedLabel) + ".*?" + 
+            escapeRegex(expectedColor) + escapeRegex(BOLD) + 
+            escapeRegex(tc.expectedValue) + escapeRegex(RESET)
+          );
 
       const match = regexMode.test(res5.stdout);
       if (match) {
