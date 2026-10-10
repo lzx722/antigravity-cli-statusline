@@ -1,8 +1,14 @@
 # Antigravity CLI 状态栏定制技能 (Statusline Skill)
 
+<<<<<<< HEAD
 [![版本](https://img.shields.io/badge/版本-1.7.0-blue.svg)](skills/antigravity-cli-statusline/SKILL.md)
 [![开源协议: MIT](https://img.shields.io/badge/协议-MIT-yellow.svg)](LICENSE)
 [![支持平台](https://img.shields.io/badge/平台-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg)]()
+=======
+[![Version](https://img.shields.io/badge/version-1.7.0-blue.svg)](skills/agy-cli-statusline/SKILL.md)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg)]()
+>>>>>>> upstream/main
 
 **简体中文** | [繁體中文](README.zh-TW.md) | [English](README.en.md)
 
@@ -52,7 +58,7 @@ agy plugin install https://github.com/lzx722/antigravity-cli-statusline
 启动 `agy` 进入交互会话后，在输入框中输入斜杠命令：
 
 ```text
-/antigravity-cli-statusline
+/antigravity-cli-statusline:agy-cli-statusline
 ```
 
 根据弹出的交互向导完成配置：
@@ -104,6 +110,35 @@ agy plugin install https://github.com/lzx722/antigravity-cli-statusline
 - **当前会话 ID (`conversation-id`)**：如 `💬 12e57f8e`
 - **沙盒模式状态 (`sandbox-status`)**：如 `🛡️ 沙盒关闭` / `🛡️ 沙盒开启 (联网)`
 - **账号邮箱 (`account-email`)**：如 `👤 user@example.com`
+
+---
+
+### 自定义排序与换行 (Sorting & Line Wrapping)
+
+在向导第三阶段中，可在输入框输入逗号分隔的序号自定义排序与换行：
+
+```text
+1,5,6,10,11,n,2,14,7,15,16,17,n,n,8,9,18,19,n,22,21,12,13,n,n,26,25,3,4,23,20,24
+```
+
+- 数字对应步骤中勾选的指标顺序（从 1 起始）
+- 支持直接输入指标英文标识符（如 `quota` 或 `model-name`）
+- 插入 `n` 可强制换行（连续 `n,n` 可创建空行分隔带）
+- **未列出的指标将自动隐藏**，方便高度精简排版
+- 直接留空或选择 `(Recommended) Skip` 将保留默认勾选顺序并展示所有选定指标
+
+效果示例（通过空行分隔为 5 个清晰板块）：
+
+```text
+Model: Gemini 3.8 Flash (High) │ Context Used: 3.4% │ Tokens: 35.7k / 1.0M │ Hourly Available: 98% │ Hourly Reset: 4h 50m
+Profile: Default │ Awaiting You: all clear │ Cumulative Outputs: 0 │ Queue: 0 │ BG: 0 │ Subagents: 2
+
+Account: anandydy529@gmail.com │ Plan: Google AI Pro │ Project: antigravity-cli-statusline
+Project Path: /Users/andyawd/Project/antigravity-cli-statusline
+Status: ✓ clean │ Git: main │ Weekly Available: 78% │ Weekly Reset: 4d 5h
+
+Mode: Accept-edits │ Conv: c5168b1c │ Agent: working │ Sandbox: off │ RAM: 279MB │ VCS: git │ CLI: v1.3.2
+```
 
 ---
 

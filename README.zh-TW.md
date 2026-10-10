@@ -1,6 +1,6 @@
 # Antigravity CLI 狀態列設定技能
 
-[![版本](https://img.shields.io/badge/版本-1.7.0-blue.svg)](skills/antigravity-cli-statusline/SKILL.md)
+[![版本](https://img.shields.io/badge/版本-1.7.0-blue.svg)](skills/agy-cli-statusline/SKILL.md)
 [![授權條款: MIT](https://img.shields.io/badge/授權條款-MIT-yellow.svg)](LICENSE)
 [![平台](https://img.shields.io/badge/平台-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg)]()
 
@@ -53,7 +53,7 @@ agy plugin install https://github.com/lzx722/antigravity-cli-statusline
 在 Antigravity CLI 提示字元輸入：
 
 ```text
-/antigravity-cli-statusline
+/antigravity-cli-statusline:agy-cli-statusline
 ```
 
 技能會引導你選擇語系（`zh-cn` / `zh-tw` / `us` / `jp`）、勾選指標、排序，並把渲染腳本部署到位、寫入三層 `settings.json`。若系統已存在既有指標配置，向導會主動提供「保留現有配置與排版」快捷選項，一鍵直接部署更新。狀態列**熱更新立即生效**，無需重啟 CLI。
@@ -107,13 +107,27 @@ agy plugin install https://github.com/lzx722/antigravity-cli-statusline
 在技能流程第三階段（步驟 4），於 Write-in 輸入框填入以逗號分隔的序號即可自訂排序：
 
 ```text
-2,5,1
+1,5,6,10,11,n,2,14,7,15,16,17,n,n,8,9,18,19,n,22,21,12,13,n,n,26,25,3,4,23,20,24
 ```
 
 - 數字 = 步驟 3 勾選清單中的序號（從 1 起算）
 - 也可混用英文識別碼（如 `quota`、`model-name`），但用數字最直觀
+- 可混入 `n` 進行強制換行（連續 `n,n` 可產生空行區隔）
 - **未提及的指標會被剔除**——排序結果即為最終顯示集合
 - 若留白或選擇 `(Recommended) 略過` 就會沿用勾選順序、顯示全部勾選的指標
+
+排序後顯示效果預覽（五段分區並搭配空行區隔）：
+
+```text
+模型: Gemini 3.8 Flash (High) │ 脈絡用量: 3.4% │ 權杖數: 35.7k / 1.0M │ 小時可用: 98% │ 小時倒數: 4h 50m
+代理角色: 預設 │ 工具待確認: 都好了 │ 檔案數量: 0 │ 待處理輸入: 0 │ 背景任務: 0 │ 子代理: 2
+
+帳號: anandydy529@gmail.com │ 訂閱方案: Google AI Pro │ 專案: antigravity-cli-statusline
+完整路徑: /Users/andyawd/Project/antigravity-cli-statusline
+工作區狀態: ✓ 乾淨 │ Git: main │ 每週可用: 78% │ 每週倒數: 4d 5h
+
+模式: Accept-edits │ 對話ID: c5168b1c │ 代理狀態: working │ 沙盒狀態: 關閉 │ 記憶體: 279MB │ VCS類型: git │ CLI版本: v1.3.2
+```
 
 ### 換行
 

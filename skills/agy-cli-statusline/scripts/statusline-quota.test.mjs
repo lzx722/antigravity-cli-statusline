@@ -1,4 +1,4 @@
-import { writeFileSync, mkdirSync, rmSync, mkdtempSync } from 'fs';
+import { writeFileSync, mkdirSync, rmSync, mkdtempSync, symlinkSync } from 'fs';
 import { join } from 'path';
 import os from 'os';
 import { spawn } from 'child_process';
@@ -9,6 +9,7 @@ const SCRIPT_PATH = fileURLToPath(new URL('./statusline-quota.mjs', import.meta.
 
 const BLUE_BOLD = "\x1b[38;2;87;202;255m\x1b[1m";
 const GREEN_BOLD = "\x1b[38;2;92;219;109m\x1b[1m";
+const YELLOW = "\x1b[38;2;255;212;39m";
 const WHITE = "\x1b[38;2;255;255;255m";
 const RESET = "\x1b[0m";
 
@@ -18,11 +19,11 @@ const RESET = "\x1b[0m";
  * @param {string} homeDir - Isolated temporary directory path
  * @returns {Promise<{code: number, stdout: string, stderr: string}>}
  */
-function runStatusline(stdinData, homeDir) {
+function runStatusline(stdinData, homeDir, scriptPath = SCRIPT_PATH) {
   return new Promise((resolve) => {
     const env = { ...process.env, HOME: homeDir, USERPROFILE: homeDir };
     delete env.DISABLE_QUOTA_HOOK;            // explicit unset — Finding #1
-    const child = spawn('node', [SCRIPT_PATH], {
+    const child = spawn('node', [scriptPath], {
       env,
       cwd: homeDir,                            // project settings resolve under temp home — Finding #2
       stdio: ['pipe', 'pipe', 'pipe'],
@@ -58,20 +59,6 @@ function makeTempHome(cache, settings) {
   return home;
 }
 
-function safeRmTempHome(homeDir) {
-  for (let i = 0; i < 5; i++) {
-    try {
-      rmSync(homeDir, { recursive: true, force: true });
-      return;
-    } catch (e) {
-      if (i === 4) break;
-      // busy wait briefly on Windows
-      const start = Date.now();
-      while (Date.now() - start < 100) {}
-    }
-  }
-}
-
 async function main() {
   console.log("=== Running statusline-quota.test.mjs (R1-R4) ===");
 
@@ -79,8 +66,8 @@ async function main() {
 
   try {
     // ----------------------------------------------------
-    // Test Case R1: Weekly countdown renders (combined format)
-    // Justification: Verifies that weekly reset countdown displays combined with quota.
+    // Test Case R1: Weekly countdown renders
+    // Justification: Verifies that weekly reset countdown displays in BLUE+BOLD for a Gemini model.
     // ----------------------------------------------------
     console.log("\n[Test R1] Verifying weekly countdown rendering...");
     const mockCacheR1 = {
@@ -111,7 +98,7 @@ async function main() {
       const resR1 = await runStatusline(metaR1, homeR1);
       console.log("R1 Output:", JSON.stringify(resR1.stdout));
 
-      const expectedR1 = `📅 \x1b[90m[\x1b[0m\x1b[38;2;87;202;255m█████\x1b[90m░\x1b[0m\x1b[90m]\x1b[0m \x1b[38;2;87;202;255m\x1b[1m90%\x1b[0m (⏳4d 11h)`;
+      const expectedR1 = `${WHITE}Weekly Reset:${RESET} ${BLUE_BOLD}4d 11h${RESET}`;
       if (resR1.code === 0 && resR1.stdout.includes(expectedR1)) {
         console.log("✅ R1 passed!");
       } else {
@@ -119,7 +106,7 @@ async function main() {
         testsPassed = false;
       }
     } finally {
-      safeRmTempHome(homeR1);
+      try { rmSync(homeR1, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }); } catch(e) {}
     }
 
     // ----------------------------------------------------
@@ -155,7 +142,7 @@ async function main() {
       const resR2 = await runStatusline(metaR2, homeR2);
       console.log("R2 Output:", JSON.stringify(resR2.stdout));
 
-      const expectedR2 = `📅 \x1b[90m[\x1b[0m\x1b[38;2;87;202;255m█████\x1b[90m░\x1b[0m\x1b[90m]\x1b[0m \x1b[38;2;87;202;255m\x1b[1m90%\x1b[0m`;
+      const expectedR2 = `${WHITE}Weekly Available:${RESET} ${BLUE_BOLD}90%${RESET}`;
       if (resR2.code === 0 && resR2.stdout.includes(expectedR2)) {
         console.log("✅ R2 passed!");
       } else {
@@ -163,7 +150,7 @@ async function main() {
         testsPassed = false;
       }
     } finally {
-      safeRmTempHome(homeR2);
+      try { rmSync(homeR2, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }); } catch(e) {}
     }
 
     // ----------------------------------------------------
@@ -199,7 +186,7 @@ async function main() {
       const resR3 = await runStatusline(metaR3, homeR3);
       console.log("R3 Output:", JSON.stringify(resR3.stdout));
 
-      const expectedR3 = `📅 \x1b[90m[\x1b[0m\x1b[38;2;92;219;109m████\x1b[90m░░\x1b[0m\x1b[90m]\x1b[0m \x1b[38;2;92;219;109m\x1b[1m61%\x1b[0m`;
+      const expectedR3 = `${WHITE}Weekly Available:${RESET} ${GREEN_BOLD}61%${RESET}`;
       if (resR3.code === 0 && resR3.stdout.includes(expectedR3)) {
         console.log("✅ R3 passed!");
       } else {
@@ -207,12 +194,12 @@ async function main() {
         testsPassed = false;
       }
     } finally {
-      safeRmTempHome(homeR3);
+      try { rmSync(homeR3, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }); } catch(e) {}
     }
 
     // ----------------------------------------------------
     // Test Case R4: Graceful fallback
-    // Justification: Verifies missing-data degradation (no weekly key returns 100% without crash).
+    // Justification: Verifies missing-data degradation (no weekly key returns N/A without crash).
     // ----------------------------------------------------
     console.log("\n[Test R4] Verifying graceful fallback...");
     const mockCacheR4 = {
@@ -236,7 +223,7 @@ async function main() {
       const resR4 = await runStatusline(metaR4, homeR4);
       console.log("R4 Output:", JSON.stringify(resR4.stdout));
 
-      const expectedR4 = `📅 \x1b[90m[\x1b[0m\x1b[38;2;87;202;255m██████\x1b[90m\x1b[0m\x1b[90m]\x1b[0m \x1b[38;2;87;202;255m\x1b[1m100%\x1b[0m`;
+      const expectedR4 = `${WHITE}Weekly Reset:${RESET} ${BLUE_BOLD}N/A${RESET}`;
       if (resR4.code === 0 && resR4.stdout.includes(expectedR4)) {
         console.log("✅ R4 passed!");
       } else {
@@ -244,62 +231,15 @@ async function main() {
         testsPassed = false;
       }
     } finally {
-      safeRmTempHome(homeR4);
+      try { rmSync(homeR4, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }); } catch(e) {}
     }
 
     // ----------------------------------------------------
-    // Test Case R5: Simplified Chinese zh-cn rendering
-    // Justification: Verifies zh-cn dictionary with Emoji & progress bar.
-    // ----------------------------------------------------
-    console.log("\n[Test R5] Verifying zh-cn Simplified Chinese dictionary & emoji...");
-    const mockCacheR5 = {
-      models: {
-        'gemini-1.5-pro': {
-          remaining_percentage: 85,
-          reset_time: '2026-07-05T03:22:46Z',
-          refreshes_in: '3h 20m'
-        }
-      },
-      updatedAt: Date.now()
-    };
-    const settingsR5 = {
-      ui: {
-        language: "zh-cn",
-        footer: {
-          items: ["model-name", "quota", "context-used"]
-        }
-      }
-    };
-    const metaR5 = {
-      model: { display_name: "Gemini 1.5 Pro" },
-      terminal_width: 160
-    };
-
-    const homeR5 = makeTempHome(mockCacheR5, settingsR5);
-    try {
-      const resR5 = await runStatusline(metaR5, homeR5);
-      console.log("R5 Output:", JSON.stringify(resR5.stdout));
-
-      const expectedR5_Model = `🤖 \x1b[38;2;71;150;227m\x1b[1mGemini 1.5 Pro\x1b[0m`;
-      const expectedR5_Quota = `⚡ \x1b[90m[\x1b[0m\x1b[38;2;87;202;255m█████\x1b[90m░\x1b[0m\x1b[90m]\x1b[0m \x1b[38;2;87;202;255m\x1b[1m85%\x1b[0m`;
-      const expectedR5_Context = `📚 \x1b[90m[\x1b[0m\x1b[38;2;87;202;255m\x1b[90m░░░░░░\x1b[0m\x1b[90m]\x1b[0m \x1b[38;2;87;202;255m\x1b[1m0.0%\x1b[0m`;
-
-      if (resR5.code === 0 && resR5.stdout.includes(expectedR5_Model) && resR5.stdout.includes(expectedR5_Quota) && resR5.stdout.includes(expectedR5_Context)) {
-        console.log("✅ R5 passed!");
-      } else {
-        console.error(`❌ R5 failed! Output did not contain expected zh-cn strings`);
-        testsPassed = false;
-      }
-    } finally {
-      safeRmTempHome(homeR5);
-    }
-
-    // ----------------------------------------------------
-    // Test Case R6: Hourly Available uses shortTerm 5h quota
+    // Test Case R5: Hourly Available uses shortTerm 5h quota
     // Justification: Verifies that Hourly Available prefers shortTerm 5h quota (32% / 2h 2m) over weekly bottleneck model quota (4.7% / 1h 20m).
     // ----------------------------------------------------
-    console.log("\n[Test R6] Verifying shortTerm 5h quota priority for Hourly Available...");
-    const mockCacheR6 = {
+    console.log("\n[Test R5] Verifying shortTerm 5h quota priority for Hourly Available...");
+    const mockCacheR5 = {
       models: {
         gemini36flashhigh: {
           remaining_percentage: 4.67,
@@ -316,7 +256,7 @@ async function main() {
       },
       updatedAt: Date.now()
     };
-    const settingsR6 = {
+    const settingsR5 = {
       ui: {
         language: "us",
         footer: {
@@ -324,24 +264,107 @@ async function main() {
         }
       }
     };
-    const metaR6 = {
+    const metaR5 = {
       model: { display_name: "Gemini 3.6 Flash (High)" },
       terminal_width: 120
     };
 
-    const homeR6 = makeTempHome(mockCacheR6, settingsR6);
+    const homeR5 = makeTempHome(mockCacheR5, settingsR5);
+    try {
+      const resR5 = await runStatusline(metaR5, homeR5);
+      console.log("R5 Output:", JSON.stringify(resR5.stdout));
+
+      const expectedR5Quota = `${WHITE}Hourly Available:${RESET} ${YELLOW}\x1b[1m32%${RESET}`;
+      const expectedR5Reset = `${WHITE}Hourly Reset:${RESET} ${BLUE_BOLD}2h 2m${RESET}`;
+      if (resR5.code === 0 && resR5.stdout.includes(expectedR5Quota) && resR5.stdout.includes(expectedR5Reset)) {
+        console.log("✅ R5 passed!");
+      } else {
+        console.error(`❌ R5 failed! Expected output to contain 32% and 2h 2m.`);
+        testsPassed = false;
+      }
+    } finally {
+      try { rmSync(homeR5, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }); } catch(e) {}
+    }
+
+    // ----------------------------------------------------
+    // Test Case R6: Direct meta.quota integration (Native CLI quota, zero disk dependency)
+    // ----------------------------------------------------
+    console.log("\n[Test R6] Verifying native meta.quota rendering and persistence...");
+    const settingsR6 = {
+      ui: {
+        language: "us",
+        footer: {
+          items: ["quota", "quota-reset-countdown", "quota-weekly", "quota-weekly-countdown"]
+        }
+      }
+    };
+    const metaR6 = {
+      model: { display_name: "Gemini 3.8 Flash (High)" },
+      quota: {
+        "gemini-5h": {
+          remaining_fraction: 0.75,
+          reset_in_seconds: 7200
+        },
+        "gemini-weekly": {
+          remaining_fraction: 0.82,
+          reset_in_seconds: 360000
+        }
+      },
+      plan_tier: "Google AI Pro",
+      email: "test@example.com",
+      terminal_width: 160
+    };
+
+    const homeR6 = makeTempHome({}, settingsR6);
     try {
       const resR6 = await runStatusline(metaR6, homeR6);
       console.log("R6 Output:", JSON.stringify(resR6.stdout));
 
-      if (resR6.code === 0 && resR6.stdout.includes("32%") && resR6.stdout.includes("2h 2m")) {
+      const expectedR6Hourly = `${WHITE}Hourly Available:${RESET} ${BLUE_BOLD}75%${RESET}`;
+      const expectedR6HourlyReset = `${WHITE}Hourly Reset:${RESET} ${BLUE_BOLD}2h${RESET}`;
+      const expectedR6Weekly = `${WHITE}Weekly Available:${RESET} ${BLUE_BOLD}82%${RESET}`;
+      const expectedR6WeeklyReset = `${WHITE}Weekly Reset:${RESET} ${BLUE_BOLD}4d 4h${RESET}`;
+
+      if (resR6.code === 0 && 
+          resR6.stdout.includes(expectedR6Hourly) && 
+          resR6.stdout.includes(expectedR6HourlyReset) &&
+          resR6.stdout.includes(expectedR6Weekly) &&
+          resR6.stdout.includes(expectedR6WeeklyReset)) {
         console.log("✅ R6 passed!");
       } else {
-        console.error("❌ R6 failed! Expected output to contain 32% and 2h 2m.");
+        console.error(`❌ R6 failed! Output did not contain expected values.`);
         testsPassed = false;
       }
     } finally {
-      safeRmTempHome(homeR6);
+      try { rmSync(homeR6, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }); } catch(e) {}
+    }
+
+    // ----------------------------------------------------
+    // Test Case R7: Symbolic link execution regression test
+    // ----------------------------------------------------
+    console.log("\n[Test R7] Verifying execution when invoked via symbolic link...");
+    const homeR7 = makeTempHome({}, settingsR6);
+    const symlinkPath = join(homeR7, 'symlink-statusline.mjs');
+    let symlinkTested = false;
+    try {
+      try {
+        symlinkSync(SCRIPT_PATH, symlinkPath, 'file');
+        symlinkTested = true;
+      } catch (symlinkErr) {
+        console.log(`⚠️ Symlinks not permitted in this environment (${symlinkErr.code || symlinkErr.message}), skipping R7 symlink invocation.`);
+      }
+
+      if (symlinkTested) {
+        const resR7 = await runStatusline(metaR6, homeR7, symlinkPath);
+        if (resR7.code === 0 && resR7.stdout && resR7.stdout.trim().length > 0) {
+          console.log("✅ R7 passed! (Symbolic link executed statusline successfully)");
+        } else {
+          console.error(`❌ R7 failed! Statusline returned 0 bytes or failed when invoked via symbolic link. Code: ${resR7.code}, Output: ${JSON.stringify(resR7.stdout)}`);
+          testsPassed = false;
+        }
+      }
+    } finally {
+      try { rmSync(homeR7, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }); } catch(e) {}
     }
 
   } catch (err) {

@@ -1,7 +1,7 @@
 import { promises as fs } from 'fs';
 import { spawn, exec } from 'child_process';
 import { promisify } from 'util';
-import { join, basename } from 'path';
+import path, { join, basename } from 'path';
 import os from 'os';
 
 // ==========================================
@@ -60,79 +60,23 @@ function getModeColor(mode) {
   return BLUE;
 }
 
-function stripAnsi(str) {
-  return str.replace(/[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g, '');
-}
-
-function isZeroWidth(code) {
-  if (!code || code < 32 || (code >= 0x7f && code < 0xa0)) return true;
-  if (code >= 0x0300 && code <= 0x036F) return true; // Combining diacritical marks
-  if (code >= 0x1AB0 && code <= 0x1AFF) return true;
-  if (code >= 0x1DC0 && code <= 0x1DFF) return true;
-  if (code >= 0x20D0 && code <= 0x20FF) return true;
-  if (code >= 0xFE20 && code <= 0xFE2F) return true;
-  if (code >= 0xFE00 && code <= 0xFE0F) return true; // Variation selectors (VS1-VS16)
-  if (code >= 0xE0100 && code <= 0xE01EF) return true;
-  if (code === 0x200B || code === 0x200C || code === 0x200D || code === 0xFEFF) return true;
-  if (code >= 0x1F3FB && code <= 0x1F3FF) return true; // Skin tone modifiers
-  return false;
-}
-
-function getDisplayWidth(str) {
-  let width = 0;
-  for (const char of str) {
-    const code = char.codePointAt(0);
-    if (isZeroWidth(code)) continue;
-
-    // ASCII printable
-    if (code >= 0x20 && code <= 0x7E) {
-      width += 1;
-      continue;
-    }
-    // Box Drawing (│), Block Elements (█, ░), Geometric Shapes, Dingbats (✓, ✗)
-    if (code >= 0x2500 && code <= 0x259F) {
-      width += 1;
-      continue;
-    }
-    if (code === 0x2713 || code === 0x2717) {
-      width += 1;
-      continue;
-    }
-    // Halfwidth Katakana / punctuation
-    if (code >= 0xFF61 && code <= 0xFFDC) {
-      width += 1;
-      continue;
-    }
-
-    // Wide characters (CJK, Emojis, Fullwidth)
-    if (
-      (code >= 0x1100 && code <= 0x115F) ||
-      (code >= 0x2E80 && code <= 0xA4CF) ||
-      (code >= 0xAC00 && code <= 0xD7A3) ||
-      (code >= 0xF900 && code <= 0xFAFF) ||
-      (code >= 0xFE30 && code <= 0xFE6F) ||
-      (code >= 0xFF00 && code <= 0xFF60) ||
-      (code >= 0xFFE0 && code <= 0xFFE6) ||
-      (code >= 0x20000 && code <= 0x3FFFF) ||
-      (code >= 0x2300 && code <= 0x23FF) ||
-      (code >= 0x2600 && code <= 0x26FF) ||
-      (code >= 0x2B00 && code <= 0x2BFF) ||
-      (code >= 0x1F000 && code <= 0x1FAFF)
-    ) {
-      width += 2;
-      continue;
-    }
-
-    width += 1;
-  }
-  return width;
-}
-
 function renderProgressBar(pct, color, length = 6) {
   const validPct = Math.min(100, Math.max(0, isNaN(pct) ? 0 : pct));
   const filled = Math.min(length, Math.max(0, Math.round((validPct / 100) * length)));
   const empty = length - filled;
   return `${GRAY}[${RESET}${color}${'█'.repeat(filled)}${GRAY}${'░'.repeat(empty)}${RESET}${GRAY}]${RESET}`;
+}
+
+function stripAnsi(str) {
+  return str.replace(/[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g, '');
+}
+
+function getDisplayWidth(str) {
+  let width = 0;
+  for (let i = 0; i < str.length; i++) {
+    width += str.charCodeAt(i) > 0x7F ? 2 : 1;
+  }
+  return width;
 }
 
 function formatTokens(num) {
@@ -226,10 +170,9 @@ async function getGitBranch(lang, projectPath) {
         }
       }
     }
-    const noVcStr = (lang === 'zh-cn' ? '无版本控制' : (lang === 'zh-tw' ? '無版本控制' : (lang === 'jp' ? 'バージョン管理なし' : 'No VC')));
-    return branch || noVcStr;
+    return branch || (lang === 'zh-cn' ? '无版本控制' : (lang === 'zh-tw' ? '無版本控制' : (lang === 'jp' ? 'バージョン管理なし' : 'No VC')));
   } catch (e) {
-    return (lang === 'zh-cn' ? '无版本控制' : (lang === 'zh-tw' ? '無版本控制' : (lang === 'jp' ? 'バージョン管理なし' : 'No VC')));
+    return lang === 'zh-cn' ? '无版本控制' : (lang === 'zh-tw' ? '無版本控制' : (lang === 'jp' ? 'バージョン管理なし' : 'No VC'));
   }
 }
 
@@ -362,6 +305,92 @@ async function getSettingsAsync(meta) {
 // ==========================================
 // Business Logic Helpers
 // ==========================================
+export function formatResetTime(resetTimeStr) {
+  try {
+    const reset = new Date(resetTimeStr);
+    const diffSeconds = Math.floor((reset.getTime() - Date.now()) / 1000);
+    if (diffSeconds <= 0) return 'now';
+    const minutes = Math.floor((diffSeconds + 59) / 60);
+    if (minutes < 60) return `${minutes}m`;
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    if (hours >= 24) {
+      const days = Math.floor(hours / 24);
+      const remHours = hours % 24;
+      return remHours ? `${days}d ${remHours}h` : `${days}d`;
+    }
+    return mins ? `${hours}h ${mins}m` : `${hours}h`;
+  } catch (e) {
+    return '';
+  }
+}
+
+export function formatSecondsToCountdown(totalSec) {
+  if (totalSec <= 0) return 'now';
+  const minutes = Math.floor((totalSec + 59) / 60);
+  if (minutes < 60) return `${minutes}m`;
+  const hours = Math.floor(minutes / 60);
+  const mins = minutes % 60;
+  if (hours >= 24) {
+    const days = Math.floor(hours / 24);
+    const remHours = hours % 24;
+    return remHours ? `${days}d ${remHours}h` : `${days}d`;
+  }
+  return mins ? `${hours}h ${mins}m` : `${hours}h`;
+}
+
+export function parseMetaQuota(meta) {
+  if (!meta?.quota || typeof meta.quota !== 'object') return null;
+  const keys = Object.keys(meta.quota);
+  if (keys.length === 0) return null;
+
+  const shortTerm = {};
+  const weekly = {};
+
+  for (const key of keys) {
+    const bucket = meta.quota[key];
+    if (!bucket) continue;
+
+    let fraction = 1;
+    const remainingField = bucket.remaining_fraction !== undefined ? bucket.remaining_fraction : bucket.remainingFraction;
+    if (remainingField !== undefined && remainingField !== null) {
+      fraction = parseFloat(remainingField);
+    } else if (bucket.reset_time || bucket.reset_in_seconds || bucket.resetTime) {
+      fraction = 0;
+    }
+
+    const remainingNum = fraction > 1 ? fraction : fraction * 100;
+    const remaining = Math.max(0, Math.min(100, remainingNum));
+
+    const resetTime = bucket.reset_time || bucket.resetTime;
+    const resetSec = bucket.reset_in_seconds !== undefined ? bucket.reset_in_seconds : bucket.resetInSeconds;
+
+    let refreshesIn = '';
+    if (resetSec !== undefined && resetSec !== null) {
+      refreshesIn = formatSecondsToCountdown(resetSec);
+    } else if (resetTime) {
+      refreshesIn = formatResetTime(resetTime);
+    }
+
+    const entry = {
+      remaining_percentage: remaining
+    };
+    if (resetTime) entry.reset_time = resetTime;
+    if (refreshesIn) entry.refreshes_in = refreshesIn;
+
+    if (key.endsWith('-weekly')) {
+      const pool = key.replace(/-weekly$/, '');
+      weekly[pool] = entry;
+    } else {
+      const pool = key.replace(/-(5h|3h|hourly|shortterm)$/, '');
+      shortTerm[pool] = entry;
+    }
+  }
+
+  if (Object.keys(shortTerm).length === 0 && Object.keys(weekly).length === 0) return null;
+  return { shortTerm, weekly };
+}
+
 async function triggerQuotaUpdateIfNeededAsync(cacheInfo) {
   let needUpdate = true;
   if (cacheInfo && Date.now() - (cacheInfo.updatedAt || 0) < 30000) needUpdate = false;
@@ -382,7 +411,7 @@ async function triggerQuotaUpdateIfNeededAsync(cacheInfo) {
   }
 }
 
-function resolveModelQuota(fallbackModel, cache) {
+export function resolveModelQuota(fallbackModel, cache) {
   const normModel = normalizeModelName(fallbackModel);
 
   // 1. 優先使用 RetrieveUserQuotaSummary 解析出的短週期 (5h) 配額桶
@@ -453,7 +482,7 @@ function resolveModelQuota(fallbackModel, cache) {
  * @param {object} cache - the local quota cache object
  * @returns {{remaining_percentage:number,reset_time?:string,refreshes_in?:string}}
  */
-function resolveWeeklyQuota(fallbackModel, cache) {
+export function resolveWeeklyQuota(fallbackModel, cache) {
   const normModel = normalizeModelName(fallbackModel);
   let pool = '';
   if (normModel.includes('gemini')) {
@@ -538,9 +567,12 @@ async function manageAccountMetaCacheAsync(meta) {
     cachedAccount = JSON.parse(content.replace(/^\uFEFF/, ''));
   } catch (e) {}
   
-  if (meta && meta.account && (meta.account.email || meta.account.plan_tier)) {
-    if (meta.account.email) cachedAccount.email = meta.account.email;
-    if (meta.account.plan_tier) cachedAccount.planTier = meta.account.plan_tier;
+  const email = meta?.email || meta?.account?.email;
+  const planTier = meta?.plan_tier || meta?.account?.plan_tier;
+
+  if (email || planTier) {
+    if (email) cachedAccount.email = email;
+    if (planTier) cachedAccount.planTier = planTier;
     try {
       await fs.mkdir(join(os.homedir(), '.gemini', 'tmp'), { recursive: true });
       await writeFileAndVerifyNoBOM(accountMetaPath, JSON.stringify(cachedAccount));
@@ -577,60 +609,23 @@ async function getMetricValueAsync(meta, keys, countersCachePath, fallbackFn) {
   return await fallbackFn();
 }
 
-function getAgentStateLabel(lang, rawState) {
-  const s = (rawState || '').toLowerCase();
-  if (lang === 'zh-cn') {
-    if (s.includes('error') || s.includes('fail')) return '异常';
-    if (s.includes('think')) return '思考中';
-    if (s.includes('tool')) return '工具调用中';
-    if (s.includes('work') || s.includes('busy') || s.includes('run')) return '工作中';
-    if (s.includes('init')) return '初始化中';
-    if (s.includes('idle') || s.includes('ready')) return '空闲';
-    return rawState || '空闲';
-  }
-  if (lang === 'zh-tw') {
-    if (s.includes('error') || s.includes('fail')) return '異常';
-    if (s.includes('think')) return '思考中';
-    if (s.includes('tool')) return '工具呼叫中';
-    if (s.includes('work') || s.includes('busy') || s.includes('run')) return '工作中';
-    if (s.includes('init')) return '初始化中';
-    if (s.includes('idle') || s.includes('ready')) return '閒置';
-    return rawState || '閒置';
-  }
-  if (lang === 'jp') {
-    if (s.includes('error') || s.includes('fail')) return 'エラー';
-    if (s.includes('think')) return '思考中';
-    if (s.includes('tool')) return 'ツール呼出中';
-    if (s.includes('work') || s.includes('busy') || s.includes('run')) return '実行中';
-    if (s.includes('init')) return '初期化中';
-    if (s.includes('idle') || s.includes('ready')) return '待機中';
-    return rawState || '待機中';
-  }
-  if (s.includes('error') || s.includes('fail')) return 'error';
-  if (s.includes('think')) return 'thinking';
-  if (s.includes('tool')) return 'tool use';
-  if (s.includes('work') || s.includes('busy') || s.includes('run')) return 'working';
-  if (s.includes('init')) return 'initializing';
-  if (s.includes('idle') || s.includes('ready')) return 'idle';
-  return rawState || 'idle';
-}
-
 async function extractMetricsAsync(meta, lang, fallbackModel, cache, cachedAccount, quotaInfo, contextInfo, weeklyInfo = { remaining_percentage: 100, refreshes_in: '' }) {
   const unknownStr = (lang === 'zh-cn' || lang === 'zh-tw') ? '未知' : (lang === 'jp' ? '不明' : 'Unknown');
+  const noneStr = (lang === 'zh-cn' || lang === 'zh-tw') ? '无' : (lang === 'jp' ? 'なし' : 'N/A');
 
   // Quota
   const quotaPct = quotaInfo.remaining_percentage;
   const quotaColor = getColorByPercentage(quotaPct);
   const quotaVal = `${Math.round(quotaPct)}%`;
   const quotaBar = renderProgressBar(quotaPct, quotaColor, 6);
-  const countdownVal = quotaInfo.refreshes_in || '';
+  const countdownVal = quotaInfo.refreshes_in || noneStr;
 
   // Weekly Quota
   const weeklyPct = weeklyInfo.remaining_percentage;
   const weeklyQuotaColor = getColorByPercentage(weeklyPct);
   const weeklyQuotaVal = `${Math.round(weeklyPct)}%`;
   const weeklyQuotaBar = renderProgressBar(weeklyPct, weeklyQuotaColor, 6);
-  const weeklyCountdownVal = weeklyInfo.refreshes_in || '';
+  const weeklyCountdownVal = weeklyInfo.refreshes_in || noneStr;
 
   // Context
   const remainCtx = Math.max(0, 100 - contextInfo.usedPctNum);
@@ -644,12 +639,11 @@ async function extractMetricsAsync(meta, lang, fallbackModel, cache, cachedAccou
   const projectFullPath = projectPath;
 
   // Account
-  const planTier = (cache && cache.planTier) ? cache.planTier : (meta?.account?.plan_tier || cachedAccount.planTier || unknownStr);
-  const accountEmail = (cache && cache.email) ? cache.email : (meta?.account?.email || cachedAccount.email || unknownStr);
+  const planTier = (cache && cache.planTier) ? cache.planTier : (meta?.plan_tier || meta?.account?.plan_tier || cachedAccount.planTier || unknownStr);
+  const accountEmail = (cache && cache.email) ? cache.email : (meta?.email || meta?.account?.email || cachedAccount.email || unknownStr);
 
   // Agent State
   const agentState = meta?.agent_state || 'idle';
-  const agentStateLabel = getAgentStateLabel(lang, agentState);
   const toolConfirmPending = !!meta?.tool_confirmation_pending;
 
   // Filter out inactive subagents before counting
@@ -797,19 +791,19 @@ async function extractMetricsAsync(meta, lang, fallbackModel, cache, cachedAccou
   const memUsage = `${rssMem}MB`;
   const vcsDirtyGlyph = vcsDirtyFlag ? '✗' : '✓';
   const vcsDirtyLabel = vcsDirtyFlag
-    ? (lang === 'zh-cn' ? '工作区有变更' : (lang === 'zh-tw' ? '工作區有變更' : (lang === 'jp' ? '変更あり' : 'dirty')))
-    : (lang === 'zh-cn' ? '工作区干净' : (lang === 'zh-tw' ? '工作區乾淨' : (lang === 'jp' ? 'クリーン' : 'clean')));
+    ? (lang === 'zh-cn' ? '有变更' : (lang === 'zh-tw' ? '有變更' : (lang === 'jp' ? '変更あり' : 'dirty')))
+    : (lang === 'zh-cn' ? '干净' : (lang === 'zh-tw' ? '乾淨' : (lang === 'jp' ? 'クリーン' : 'clean')));
   const vcsType = meta?.vcs?.type || 'git';
 
   const sandboxEnabled = !!meta?.sandbox?.enabled;
   const sandboxAllowNet = !!meta?.sandbox?.allow_network;
   let sandboxStatusVal;
   if (!sandboxEnabled) {
-    sandboxStatusVal = (lang === 'zh-cn') ? '沙盒关闭' : ((lang === 'zh-tw') ? '沙盒關閉' : ((lang === 'jp') ? 'サンドボックス無効' : 'sandbox off'));
+    sandboxStatusVal = lang === 'zh-cn' ? '关闭' : (lang === 'zh-tw' ? '關閉' : (lang === 'jp' ? 'オフ' : 'off'));
   } else if (sandboxAllowNet) {
-    sandboxStatusVal = (lang === 'zh-cn') ? '沙盒开启 (联网)' : ((lang === 'zh-tw') ? '沙盒啟用 (聯網)' : ((lang === 'jp') ? 'サンドボックス有効 (ネット)' : 'sandbox on (net)'));
+    sandboxStatusVal = lang === 'zh-cn' ? '启用（联网）' : (lang === 'zh-tw' ? '啟用（聯網）' : (lang === 'jp' ? 'オン（ネット）' : 'on (net)'));
   } else {
-    sandboxStatusVal = (lang === 'zh-cn') ? '沙盒开启 (离线)' : ((lang === 'zh-tw') ? '沙盒啟用 (離線)' : ((lang === 'jp') ? 'サンドボックス有効 (オフライン)' : 'sandbox on (offline)'));
+    sandboxStatusVal = lang === 'zh-cn' ? '启用（离线）' : (lang === 'zh-tw' ? '啟用（離線）' : (lang === 'jp' ? 'オン（オフライン）' : 'on (no-net)'));
   }
 
   let agentProfileName = (lang === 'zh-cn' || lang === 'zh-tw') ? (lang === 'zh-cn' ? '默认' : '預設') : (lang === 'jp' ? 'デフォルト' : 'Default');
@@ -833,7 +827,7 @@ async function extractMetricsAsync(meta, lang, fallbackModel, cache, cachedAccou
   return {
     fallbackModel, quotaColor, quotaVal, quotaBar, contextColor, usedPct, contextBar, memUsage, tokenCount,
     countdownVal, gitBranch, projectName, projectFullPath, planTier, accountEmail,
-    agentState, agentStateLabel, toolConfirmPending, pendingInputCount, backgroundTasksCount, subagentsCount,
+    agentState, toolConfirmPending, pendingInputCount, backgroundTasksCount, subagentsCount,
     artifactsCount, vcsDirtyFlag, vcsDirtyGlyph, vcsDirtyLabel, vcsType, sandboxEnabled,
     sandboxAllowNet, sandboxStatusVal, cliVersion, conversationIdShort, agentProfileName,
     weeklyQuotaColor, weeklyQuotaVal, weeklyQuotaBar, weeklyCountdownVal, mode
@@ -845,11 +839,11 @@ function buildI18nDict(lang, m) {
     'zh-cn': {
       'model-name': `🤖 ${getModelColor(m.fallbackModel)}${BOLD}${m.fallbackModel}${RESET}`,
       'quota': `⚡ ${m.quotaBar} ${m.quotaColor}${BOLD}${m.quotaVal}${RESET}`,
-      'quota-reset-countdown': m.countdownVal
+      'quota-reset-countdown': m.countdownVal && m.countdownVal !== '无' && m.countdownVal !== 'N/A'
         ? `⚡ ${m.quotaBar} ${m.quotaColor}${BOLD}${m.quotaVal}${RESET}（⏳${m.countdownVal}）`
         : `⚡ ${m.quotaBar} ${m.quotaColor}${BOLD}${m.quotaVal}${RESET}`,
       'quota-weekly': `📅 ${m.weeklyQuotaBar} ${m.weeklyQuotaColor}${BOLD}${m.weeklyQuotaVal}${RESET}`,
-      'quota-weekly-countdown': m.weeklyCountdownVal
+      'quota-weekly-countdown': m.weeklyCountdownVal && m.weeklyCountdownVal !== '无' && m.weeklyCountdownVal !== 'N/A'
         ? `📅 ${m.weeklyQuotaBar} ${m.weeklyQuotaColor}${BOLD}${m.weeklyQuotaVal}${RESET}（⏳${m.weeklyCountdownVal}）`
         : `📅 ${m.weeklyQuotaBar} ${m.weeklyQuotaColor}${BOLD}${m.weeklyQuotaVal}${RESET}`,
       'context-used': `📚 ${m.contextBar} ${m.contextColor}${BOLD}${m.usedPct}${RESET}`,
@@ -863,7 +857,7 @@ function buildI18nDict(lang, m) {
       'plan-tier': `👑 ${BOLD}${m.planTier}${RESET}`,
       'account-email': `👤 ${BOLD}${m.accountEmail}${RESET}`,
       'agent-profile': `🎭 ${BLUE}${BOLD}${m.agentProfileName} 角色${RESET}`,
-      'agent-state': `⚙️ ${getAgentStateColor(m.agentState)}${BOLD}${m.agentStateLabel}${RESET}`,
+      'agent-state': `⚙️ ${getAgentStateColor(m.agentState)}${BOLD}${m.agentState}${RESET}`,
       'tool-confirmation': `🔔 ${getToolConfirmColor(m.toolConfirmPending)}${BOLD}${m.toolConfirmPending ? '等待确认' : '已就绪'}${RESET}`,
       'pending-input': `📥 ${getColorByCount(m.pendingInputCount)}${BOLD}${m.pendingInputCount}${RESET} 队列`,
       'background-tasks': `🔄 ${getColorByCount(m.backgroundTasksCount)}${BOLD}${m.backgroundTasksCount}${RESET} 后台`,
@@ -875,100 +869,88 @@ function buildI18nDict(lang, m) {
       'mode': `🎯 ${getModeColor(m.mode)}${BOLD}${m.mode} 模式${RESET}`
     },
     'zh-tw': {
-      'model-name': `🤖 ${getModelColor(m.fallbackModel)}${BOLD}${m.fallbackModel}${RESET}`,
-      'quota': `⚡ ${m.quotaBar} ${m.quotaColor}${BOLD}${m.quotaVal}${RESET}`,
-      'quota-reset-countdown': m.countdownVal
-        ? `⚡ ${m.quotaBar} ${m.quotaColor}${BOLD}${m.quotaVal}${RESET}（⏳${m.countdownVal}）`
-        : `⚡ ${m.quotaBar} ${m.quotaColor}${BOLD}${m.quotaVal}${RESET}`,
-      'quota-weekly': `📅 ${m.weeklyQuotaBar} ${m.weeklyQuotaColor}${BOLD}${m.weeklyQuotaVal}${RESET}`,
-      'quota-weekly-countdown': m.weeklyCountdownVal
-        ? `📅 ${m.weeklyQuotaBar} ${m.weeklyQuotaColor}${BOLD}${m.weeklyQuotaVal}${RESET}（⏳${m.weeklyCountdownVal}）`
-        : `📅 ${m.weeklyQuotaBar} ${m.weeklyQuotaColor}${BOLD}${m.weeklyQuotaVal}${RESET}`,
-      'context-used': `📚 ${m.contextBar} ${m.contextColor}${BOLD}${m.usedPct}${RESET}`,
-      'token-count': `🪙 ${m.tokenCount}`,
-      'memory-usage': `💻 ${BLUE}${BOLD}${m.memUsage}${RESET}`,
-      'git-branch': `🌿 ${BOLD}${m.gitBranch}${RESET}`,
-      'vcs-dirty': `📝 ${getVcsDirtyColor(m.vcsDirtyFlag)}${BOLD}${m.vcsDirtyGlyph} ${m.vcsDirtyLabel}${RESET}`,
-      'vcs-type': `🗂️ ${BOLD}${m.vcsType}${RESET}`,
-      'project-path': `📁 ${BOLD}${m.projectName}${RESET}`,
-      'project-full-path': `📁 ${BOLD}${m.projectFullPath}${RESET}`,
-      'plan-tier': `👑 ${BOLD}${m.planTier}${RESET}`,
-      'account-email': `👤 ${BOLD}${m.accountEmail}${RESET}`,
-      'agent-profile': `🎭 ${BLUE}${BOLD}${m.agentProfileName} 角色${RESET}`,
-      'agent-state': `⚙️ ${getAgentStateColor(m.agentState)}${BOLD}${m.agentStateLabel}${RESET}`,
-      'tool-confirmation': `🔔 ${getToolConfirmColor(m.toolConfirmPending)}${BOLD}${m.toolConfirmPending ? '在等你' : '都好了'}${RESET}`,
-      'pending-input': `📥 ${getColorByCount(m.pendingInputCount)}${BOLD}${m.pendingInputCount}${RESET} 待處理輸入`,
-      'background-tasks': `🔄 ${getColorByCount(m.backgroundTasksCount)}${BOLD}${m.backgroundTasksCount}${RESET} 背景任務`,
-      'subagents': `👥 ${getColorByCount(m.subagentsCount)}${BOLD}${m.subagentsCount}${RESET} 子代理`,
-      'artifacts': `📦 ${BOLD}${m.artifactsCount}${RESET} 工件數`,
-      'sandbox-status': `🛡️ ${getSandboxColor(m.sandboxEnabled, m.sandboxAllowNet)}${BOLD}${m.sandboxStatusVal}${RESET}`,
-      'cli-version': `🏷️ ${BOLD}${m.cliVersion}${RESET}`,
-      'conversation-id': `💬 ${BOLD}${m.conversationIdShort}${RESET}`,
-      'mode': `🎯 ${getModeColor(m.mode)}${BOLD}${m.mode} 模式${RESET}`
+      'model-name': `${WHITE}模型:${RESET} ${getModelColor(m.fallbackModel)}${BOLD}${m.fallbackModel}${RESET}`,
+      'quota': `${WHITE}小時可用:${RESET} ${m.quotaColor}${BOLD}${m.quotaVal}${RESET}`,
+      'context-used': `${WHITE}脈絡用量:${RESET} ${m.contextColor}${BOLD}${m.usedPct}${RESET}`,
+      'memory-usage': `${WHITE}記憶體:${RESET} ${BLUE}${BOLD}${m.memUsage}${RESET}`,
+      'token-count': `${WHITE}權杖數:${RESET} ${m.tokenCount}`,
+      'quota-reset-countdown': `${WHITE}小時倒數:${RESET} ${BLUE}${BOLD}${m.countdownVal}${RESET}`,
+      'quota-weekly': `${WHITE}每週可用:${RESET} ${m.weeklyQuotaColor}${BOLD}${m.weeklyQuotaVal}${RESET}`,
+      'quota-weekly-countdown': `${WHITE}每週倒數:${RESET} ${BLUE}${BOLD}${m.weeklyCountdownVal}${RESET}`,
+      'git-branch': `${WHITE}Git: ${BOLD}${m.gitBranch}${RESET}`,
+      'project-path': `${WHITE}專案: ${BOLD}${m.projectName}${RESET}`,
+      'project-full-path': `${WHITE}完整路徑: ${BOLD}${m.projectFullPath}${RESET}`,
+      'plan-tier': `${WHITE}訂閱方案: ${BOLD}${m.planTier}${RESET}`,
+      'account-email': `${WHITE}帳號: ${BOLD}${m.accountEmail}${RESET}`,
+      'agent-state': `${WHITE}代理狀態:${RESET} ${getAgentStateColor(m.agentState)}${BOLD}${m.agentState}${RESET}`,
+      'tool-confirmation': `${WHITE}工具待確認:${RESET} ${getToolConfirmColor(m.toolConfirmPending)}${BOLD}${m.toolConfirmPending ? '在等你' : '都好了'}${RESET}`,
+      'pending-input': `${WHITE}待處理輸入:${RESET} ${getColorByCount(m.pendingInputCount)}${BOLD}${m.pendingInputCount}${RESET}`,
+      'background-tasks': `${WHITE}背景任務:${RESET} ${getColorByCount(m.backgroundTasksCount)}${BOLD}${m.backgroundTasksCount}${RESET}`,
+      'subagents': `${WHITE}子代理:${RESET} ${getColorByCount(m.subagentsCount)}${BOLD}${m.subagentsCount}${RESET}`,
+      'artifacts': `${WHITE}檔案數量: ${BOLD}${m.artifactsCount}${RESET}`,
+      'vcs-dirty': `${WHITE}工作區狀態:${RESET} ${getVcsDirtyColor(m.vcsDirtyFlag)}${BOLD}${m.vcsDirtyGlyph} ${m.vcsDirtyLabel}${RESET}`,
+      'vcs-type': `${WHITE}VCS類型: ${BOLD}${m.vcsType}${RESET}`,
+      'sandbox-status': `${WHITE}沙盒狀態:${RESET} ${getSandboxColor(m.sandboxEnabled, m.sandboxAllowNet)}${BOLD}${m.sandboxStatusVal}${RESET}`,
+      'cli-version': `${WHITE}CLI版本: ${BOLD}${m.cliVersion}${RESET}`,
+      'conversation-id': `${WHITE}對話ID: ${BOLD}${m.conversationIdShort}${RESET}`,
+      'agent-profile': `${WHITE}代理角色:${RESET} ${BLUE}${BOLD}${m.agentProfileName}${RESET}`,
+      'mode': `${WHITE}模式:${RESET} ${getModeColor(m.mode)}${BOLD}${m.mode}${RESET}`
     },
     'us': {
-      'model-name': `🤖 ${getModelColor(m.fallbackModel)}${BOLD}${m.fallbackModel}${RESET}`,
-      'quota': `⚡ ${m.quotaBar} ${m.quotaColor}${BOLD}${m.quotaVal}${RESET}`,
-      'quota-reset-countdown': m.countdownVal
-        ? `⚡ ${m.quotaBar} ${m.quotaColor}${BOLD}${m.quotaVal}${RESET} (⏳${m.countdownVal})`
-        : `⚡ ${m.quotaBar} ${m.quotaColor}${BOLD}${m.quotaVal}${RESET}`,
-      'quota-weekly': `📅 ${m.weeklyQuotaBar} ${m.weeklyQuotaColor}${BOLD}${m.weeklyQuotaVal}${RESET}`,
-      'quota-weekly-countdown': m.weeklyCountdownVal
-        ? `📅 ${m.weeklyQuotaBar} ${m.weeklyQuotaColor}${BOLD}${m.weeklyQuotaVal}${RESET} (⏳${m.weeklyCountdownVal})`
-        : `📅 ${m.weeklyQuotaBar} ${m.weeklyQuotaColor}${BOLD}${m.weeklyQuotaVal}${RESET}`,
-      'context-used': `📚 ${m.contextBar} ${m.contextColor}${BOLD}${m.usedPct}${RESET}`,
-      'token-count': `🪙 ${m.tokenCount}`,
-      'memory-usage': `💻 ${BLUE}${BOLD}${m.memUsage}${RESET}`,
-      'git-branch': `🌿 ${BOLD}${m.gitBranch}${RESET}`,
-      'vcs-dirty': `📝 ${getVcsDirtyColor(m.vcsDirtyFlag)}${BOLD}${m.vcsDirtyGlyph} ${m.vcsDirtyLabel}${RESET}`,
-      'vcs-type': `🗂️ ${BOLD}${m.vcsType}${RESET}`,
-      'project-path': `📁 ${BOLD}${m.projectName}${RESET}`,
-      'project-full-path': `📁 ${BOLD}${m.projectFullPath}${RESET}`,
-      'plan-tier': `👑 ${BOLD}${m.planTier}${RESET}`,
-      'account-email': `👤 ${BOLD}${m.accountEmail}${RESET}`,
-      'agent-profile': `🎭 ${BLUE}${BOLD}${m.agentProfileName}${RESET}`,
-      'agent-state': `⚙️ ${getAgentStateColor(m.agentState)}${BOLD}${m.agentStateLabel}${RESET}`,
-      'tool-confirmation': `🔔 ${getToolConfirmColor(m.toolConfirmPending)}${BOLD}${m.toolConfirmPending ? 'waiting' : 'ready'}${RESET}`,
-      'pending-input': `📥 ${getColorByCount(m.pendingInputCount)}${BOLD}${m.pendingInputCount}${RESET} queued`,
-      'background-tasks': `🔄 ${getColorByCount(m.backgroundTasksCount)}${BOLD}${m.backgroundTasksCount}${RESET} bg tasks`,
-      'subagents': `👥 ${getColorByCount(m.subagentsCount)}${BOLD}${m.subagentsCount}${RESET} subagents`,
-      'artifacts': `📦 ${BOLD}${m.artifactsCount}${RESET} artifacts`,
-      'sandbox-status': `🛡️ ${getSandboxColor(m.sandboxEnabled, m.sandboxAllowNet)}${BOLD}${m.sandboxStatusVal}${RESET}`,
-      'cli-version': `🏷️ ${BOLD}${m.cliVersion}${RESET}`,
-      'conversation-id': `💬 ${BOLD}${m.conversationIdShort}${RESET}`,
-      'mode': `🎯 ${getModeColor(m.mode)}${BOLD}${m.mode} Mode${RESET}`
+      'model-name': `${WHITE}Model:${RESET} ${getModelColor(m.fallbackModel)}${BOLD}${m.fallbackModel}${RESET}`,
+      'quota': `${WHITE}Hourly Available:${RESET} ${m.quotaColor}${BOLD}${m.quotaVal}${RESET}`,
+      'context-used': `${WHITE}Context Used:${RESET} ${m.contextColor}${BOLD}${m.usedPct}${RESET}`,
+      'memory-usage': `${WHITE}RAM:${RESET} ${BLUE}${BOLD}${m.memUsage}${RESET}`,
+      'token-count': `${WHITE}Tokens:${RESET} ${m.tokenCount}`,
+      'quota-reset-countdown': `${WHITE}Hourly Reset:${RESET} ${BLUE}${BOLD}${m.countdownVal}${RESET}`,
+      'quota-weekly': `${WHITE}Weekly Available:${RESET} ${m.weeklyQuotaColor}${BOLD}${m.weeklyQuotaVal}${RESET}`,
+      'quota-weekly-countdown': `${WHITE}Weekly Reset:${RESET} ${BLUE}${BOLD}${m.weeklyCountdownVal}${RESET}`,
+      'git-branch': `${WHITE}Git: ${BOLD}${m.gitBranch}${RESET}`,
+      'project-path': `${WHITE}Project: ${BOLD}${m.projectName}${RESET}`,
+      'project-full-path': `${WHITE}Project Path: ${BOLD}${m.projectFullPath}${RESET}`,
+      'plan-tier': `${WHITE}Plan: ${BOLD}${m.planTier}${RESET}`,
+      'account-email': `${WHITE}Account: ${BOLD}${m.accountEmail}${RESET}`,
+      'agent-state': `${WHITE}Agent:${RESET} ${getAgentStateColor(m.agentState)}${BOLD}${m.agentState}${RESET}`,
+      'tool-confirmation': `${WHITE}Awaiting You:${RESET} ${getToolConfirmColor(m.toolConfirmPending)}${BOLD}${m.toolConfirmPending ? 'waiting' : 'all clear'}${RESET}`,
+      'pending-input': `${WHITE}Queue:${RESET} ${getColorByCount(m.pendingInputCount)}${BOLD}${m.pendingInputCount}${RESET}`,
+      'background-tasks': `${WHITE}BG:${RESET} ${getColorByCount(m.backgroundTasksCount)}${BOLD}${m.backgroundTasksCount}${RESET}`,
+      'subagents': `${WHITE}Subagents:${RESET} ${getColorByCount(m.subagentsCount)}${BOLD}${m.subagentsCount}${RESET}`,
+      'artifacts': `${WHITE}Cumulative Outputs: ${BOLD}${m.artifactsCount}${RESET}`,
+      'vcs-dirty': `${WHITE}Status:${RESET} ${getVcsDirtyColor(m.vcsDirtyFlag)}${BOLD}${m.vcsDirtyGlyph} ${m.vcsDirtyLabel}${RESET}`,
+      'vcs-type': `${WHITE}VCS: ${BOLD}${m.vcsType}${RESET}`,
+      'sandbox-status': `${WHITE}Sandbox:${RESET} ${getSandboxColor(m.sandboxEnabled, m.sandboxAllowNet)}${BOLD}${m.sandboxStatusVal}${RESET}`,
+      'cli-version': `${WHITE}CLI: ${BOLD}${m.cliVersion}${RESET}`,
+      'conversation-id': `${WHITE}Conv: ${BOLD}${m.conversationIdShort}${RESET}`,
+      'agent-profile': `${WHITE}Profile:${RESET} ${BLUE}${BOLD}${m.agentProfileName}${RESET}`,
+      'mode': `${WHITE}Mode:${RESET} ${getModeColor(m.mode)}${BOLD}${m.mode}${RESET}`
     },
     'jp': {
-      'model-name': `🤖 ${getModelColor(m.fallbackModel)}${BOLD}${m.fallbackModel}${RESET}`,
-      'quota': `⚡ ${m.quotaBar} ${m.quotaColor}${BOLD}${m.quotaVal}${RESET}`,
-      'quota-reset-countdown': m.countdownVal
-        ? `⚡ ${m.quotaBar} ${m.quotaColor}${BOLD}${m.quotaVal}${RESET}（⏳${m.countdownVal}）`
-        : `⚡ ${m.quotaBar} ${m.quotaColor}${BOLD}${m.quotaVal}${RESET}`,
-      'quota-weekly': `📅 ${m.weeklyQuotaBar} ${m.weeklyQuotaColor}${BOLD}${m.weeklyQuotaVal}${RESET}`,
-      'quota-weekly-countdown': m.weeklyCountdownVal
-        ? `📅 ${m.weeklyQuotaBar} ${m.weeklyQuotaColor}${BOLD}${m.weeklyQuotaVal}${RESET}（⏳${m.weeklyCountdownVal}）`
-        : `📅 ${m.weeklyQuotaBar} ${m.weeklyQuotaColor}${BOLD}${m.weeklyQuotaVal}${RESET}`,
-      'context-used': `📚 ${m.contextBar} ${m.contextColor}${BOLD}${m.usedPct}${RESET}`,
-      'token-count': `🪙 ${m.tokenCount}`,
-      'memory-usage': `💻 ${BLUE}${BOLD}${m.memUsage}${RESET}`,
-      'git-branch': `🌿 ${BOLD}${m.gitBranch}${RESET}`,
-      'vcs-dirty': `📝 ${getVcsDirtyColor(m.vcsDirtyFlag)}${BOLD}${m.vcsDirtyGlyph} ${m.vcsDirtyLabel}${RESET}`,
-      'vcs-type': `🗂️ ${BOLD}${m.vcsType}${RESET}`,
-      'project-path': `📁 ${BOLD}${m.projectName}${RESET}`,
-      'project-full-path': `📁 ${BOLD}${m.projectFullPath}${RESET}`,
-      'plan-tier': `👑 ${BOLD}${m.planTier}${RESET}`,
-      'account-email': `👤 ${BOLD}${m.accountEmail}${RESET}`,
-      'agent-profile': `🎭 ${BLUE}${BOLD}${m.agentProfileName} ロール${RESET}`,
-      'agent-state': `⚙️ ${getAgentStateColor(m.agentState)}${BOLD}${m.agentStateLabel}${RESET}`,
-      'tool-confirmation': `🔔 ${getToolConfirmColor(m.toolConfirmPending)}${BOLD}${m.toolConfirmPending ? '待機中' : '準備完了'}${RESET}`,
-      'pending-input': `📥 ${getColorByCount(m.pendingInputCount)}${BOLD}${m.pendingInputCount}${RESET} キュー`,
-      'background-tasks': `🔄 ${getColorByCount(m.backgroundTasksCount)}${BOLD}${m.backgroundTasksCount}${RESET} BGタスク`,
-      'subagents': `👥 ${getColorByCount(m.subagentsCount)}${BOLD}${m.subagentsCount}${RESET} サブ代理`,
-      'artifacts': `📦 ${BOLD}${m.artifactsCount}${RESET} 成果物`,
-      'sandbox-status': `🛡️ ${getSandboxColor(m.sandboxEnabled, m.sandboxAllowNet)}${BOLD}${m.sandboxStatusVal}${RESET}`,
-      'cli-version': `🏷️ ${BOLD}${m.cliVersion}${RESET}`,
-      'conversation-id': `💬 ${BOLD}${m.conversationIdShort}${RESET}`,
-      'mode': `🎯 ${getModeColor(m.mode)}${BOLD}${m.mode} モード${RESET}`
+      'model-name': `${WHITE}モデル:${RESET} ${getModelColor(m.fallbackModel)}${BOLD}${m.fallbackModel}${RESET}`,
+      'quota': `${WHITE}時間残量:${RESET} ${m.quotaColor}${BOLD}${m.quotaVal}${RESET}`,
+      'context-used': `${WHITE}コンテキスト使用:${RESET} ${m.contextColor}${BOLD}${m.usedPct}${RESET}`,
+      'memory-usage': `${WHITE}メモリ:${RESET} ${BLUE}${BOLD}${m.memUsage}${RESET}`,
+      'token-count': `${WHITE}トークン:${RESET} ${m.tokenCount}`,
+      'quota-reset-countdown': `${WHITE}時間リセット:${RESET} ${BLUE}${BOLD}${m.countdownVal}${RESET}`,
+      'quota-weekly': `${WHITE}週間残量:${RESET} ${m.weeklyQuotaColor}${BOLD}${m.weeklyQuotaVal}${RESET}`,
+      'quota-weekly-countdown': `${WHITE}週間リセット:${RESET} ${BLUE}${BOLD}${m.weeklyCountdownVal}${RESET}`,
+      'git-branch': `${WHITE}Gitブランチ: ${BOLD}${m.gitBranch}${RESET}`,
+      'project-path': `${WHITE}プロジェクト: ${BOLD}${m.projectName}${RESET}`,
+      'project-full-path': `${WHITE}パス: ${BOLD}${m.projectFullPath}${RESET}`,
+      'plan-tier': `${WHITE}プラン: ${BOLD}${m.planTier}${RESET}`,
+      'account-email': `${WHITE}アカウント: ${BOLD}${m.accountEmail}${RESET}`,
+      'agent-state': `${WHITE}状態:${RESET} ${getAgentStateColor(m.agentState)}${BOLD}${m.agentState}${RESET}`,
+      'tool-confirmation': `${WHITE}ご承認待ち:${RESET} ${getToolConfirmColor(m.toolConfirmPending)}${BOLD}${m.toolConfirmPending ? '待機中' : 'すべて完了'}${RESET}`,
+      'pending-input': `${WHITE}入力キュー:${RESET} ${getColorByCount(m.pendingInputCount)}${BOLD}${m.pendingInputCount}${RESET}`,
+      'background-tasks': `${WHITE}BGタスク:${RESET} ${getColorByCount(m.backgroundTasksCount)}${BOLD}${m.backgroundTasksCount}${RESET}`,
+      'subagents': `${WHITE}サブ代理:${RESET} ${getColorByCount(m.subagentsCount)}${BOLD}${m.subagentsCount}${RESET}`,
+      'artifacts': `${WHITE}成果物: ${BOLD}${m.artifactsCount}${RESET}`,
+      'vcs-dirty': `${WHITE}作業領域:${RESET} ${getVcsDirtyColor(m.vcsDirtyFlag)}${BOLD}${m.vcsDirtyGlyph} ${m.vcsDirtyLabel}${RESET}`,
+      'vcs-type': `${WHITE}VCS種別: ${BOLD}${m.vcsType}${RESET}`,
+      'sandbox-status': `${WHITE}サンドボックス:${RESET} ${getSandboxColor(m.sandboxEnabled, m.sandboxAllowNet)}${BOLD}${m.sandboxStatusVal}${RESET}`,
+      'cli-version': `${WHITE}CLI版: ${BOLD}${m.cliVersion}${RESET}`,
+      'conversation-id': `${WHITE}会話ID: ${BOLD}${m.conversationIdShort}${RESET}`,
+      'agent-profile': `${WHITE}プロファイル:${RESET} ${BLUE}${BOLD}${m.agentProfileName}${RESET}`,
+      'mode': `${WHITE}モード:${RESET} ${getModeColor(m.mode)}${BOLD}${m.mode}${RESET}`
     }
   };
   return dicts[lang] || dicts['zh-cn'] || dicts['zh-tw'];
@@ -1020,9 +1002,11 @@ async function main() {
     try { if (stdinStr.trim()) meta = JSON.parse(stdinStr.replace(/^\uFEFF/, '')); } catch (e) {}
 
     const settings = await getSettingsAsync(meta);
-    const termWidth = Math.max(40, (meta?.terminal_width || process.stdout.columns || 80) - 1);
+    const termWidth = Math.max(40, (meta?.terminal_width || process.stdout.columns || 80) - 15);
     
-    let fallbackModel = meta?.model?.display_name || meta?.model?.id || settings?.model || 'Gemini 3.7 Flash (High)';
+    let fallbackModel = 'Gemini 3.5 Flash (High)';
+    if (meta?.model?.display_name) fallbackModel = meta.model.display_name;
+    else if (meta?.model?.id) fallbackModel = meta.model.id;
     
     // 退讓模式
     if (!settings?.ui?.footer?.items) {
@@ -1040,14 +1024,31 @@ async function main() {
       conversationId = meta.conversation_id.replace(/\.\./g, '').replace(/\//g, '').replace(/\\/g, '');
     }
     
-    // 讀取快取並觸發更新
+    // 讀取快取並優先整合 Antigravity CLI 原生 meta.quota
     const cachePath = join(os.homedir(), '.gemini', 'tmp', 'real_quota_cache.json');
     let cache = null;
     try {
       const cacheContent = await fs.readFile(cachePath, 'utf8');
       cache = JSON.parse(cacheContent.replace(/^\uFEFF/, ''));
     } catch (e) {}
-    await triggerQuotaUpdateIfNeededAsync(cache);
+
+    const metaQuota = parseMetaQuota(meta);
+    if (metaQuota) {
+      if (!cache) cache = {};
+      cache.shortTerm = { ...(cache.shortTerm || {}), ...metaQuota.shortTerm };
+      cache.weekly = { ...(cache.weekly || {}), ...metaQuota.weekly };
+      const planTier = meta?.plan_tier || meta?.account?.plan_tier;
+      const email = meta?.email || meta?.account?.email;
+      if (planTier) cache.planTier = planTier;
+      if (email) cache.email = email;
+      cache.updatedAt = Date.now();
+      try {
+        await fs.mkdir(join(os.homedir(), '.gemini', 'tmp'), { recursive: true });
+        await writeFileAndVerifyNoBOM(cachePath, JSON.stringify(cache, null, 2));
+      } catch (_) {}
+    } else {
+      await triggerQuotaUpdateIfNeededAsync(cache);
+    }
 
     // 解析核心資料
     const quotaInfo = resolveModelQuota(fallbackModel, cache);
@@ -1067,7 +1068,9 @@ async function main() {
       await fs.writeFile(join(projectLogDir, 'hook_error.log'), `[${new Date().toISOString()}] ${err.stack || err.message}\n`, { encoding: 'utf8', flag: 'a' });
     } catch (e) {}
     
-    let fallbackModel = meta?.model?.display_name || meta?.model?.id || 'Gemini 3.7 Flash (High)';
+    let fallbackModel = 'Gemini 3.5 Flash (High)';
+    if (meta?.model?.display_name) fallbackModel = meta.model.display_name;
+    else if (meta?.model?.id) fallbackModel = meta.model.id;
     console.log(`? for shortcuts | ${fallbackModel}`);
   }
   process.exit(0);
