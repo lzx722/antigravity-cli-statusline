@@ -724,6 +724,7 @@ async function extractMetricsAsync(meta, lang, fallbackModel, cache, cachedAccou
 
   // Agent State
   const agentState = meta?.agent_state || 'idle';
+  const agentStateLabel = getAgentStateLabel(lang, agentState);
   const toolConfirmPending = !!meta?.tool_confirmation_pending;
 
   // Filter out inactive subagents before counting
@@ -907,11 +908,44 @@ async function extractMetricsAsync(meta, lang, fallbackModel, cache, cachedAccou
   return {
     fallbackModel, quotaColor, quotaVal, quotaBar, contextColor, usedPct, contextBar, memUsage, tokenCount,
     countdownVal, gitBranch, projectName, projectFullPath, planTier, accountEmail,
-    agentState, toolConfirmPending, pendingInputCount, backgroundTasksCount, subagentsCount,
+    agentState, agentStateLabel, toolConfirmPending, pendingInputCount, backgroundTasksCount, subagentsCount,
     artifactsCount, vcsDirtyFlag, vcsDirtyGlyph, vcsDirtyLabel, vcsType, sandboxEnabled,
     sandboxAllowNet, sandboxStatusVal, cliVersion, conversationIdShort, agentProfileName,
     weeklyQuotaColor, weeklyQuotaVal, weeklyQuotaBar, weeklyCountdownVal, mode
   };
+}
+
+function getAgentStateLabel(lang, rawState) {
+  const normLang = normalizeLanguage(lang);
+  const s = (rawState || '').toLowerCase();
+  if (normLang === 'zh-cn') {
+    if (s.includes('error') || s.includes('fail')) return '异常';
+    if (s.includes('think')) return '思考中';
+    if (s.includes('tool')) return '工具调用中';
+    if (s.includes('work') || s.includes('busy') || s.includes('run')) return '工作中';
+    if (s.includes('init')) return '初始化中';
+    if (s.includes('idle') || s.includes('ready')) return '空闲';
+    return rawState || '空闲';
+  }
+  if (normLang === 'zh-tw') {
+    if (s.includes('error') || s.includes('fail')) return '異常';
+    if (s.includes('think')) return '思考中';
+    if (s.includes('tool')) return '工具呼叫中';
+    if (s.includes('work') || s.includes('busy') || s.includes('run')) return '工作中';
+    if (s.includes('init')) return '初始化中';
+    if (s.includes('idle') || s.includes('ready')) return '閒置';
+    return rawState || '閒置';
+  }
+  if (normLang === 'jp') {
+    if (s.includes('error') || s.includes('fail')) return 'エラー';
+    if (s.includes('think')) return '思考中';
+    if (s.includes('tool')) return 'ツール呼出中';
+    if (s.includes('work') || s.includes('busy') || s.includes('run')) return '実行中';
+    if (s.includes('init')) return '初期化中';
+    if (s.includes('idle') || s.includes('ready')) return '待機中';
+    return rawState || '待機中';
+  }
+  return rawState || 'idle';
 }
 
 function buildI18nDict(lang, m) {
@@ -965,7 +999,7 @@ function buildI18nDict(lang, m) {
       'plan-tier': `👑 ${BOLD}${m.planTier}${RESET}`,
       'account-email': `👤 ${BOLD}${m.accountEmail}${RESET}`,
       'agent-profile': `🎭 ${BLUE}${BOLD}${m.agentProfileName} 角色${RESET}`,
-      'agent-state': `⚙️ ${getAgentStateColor(m.agentState)}${BOLD}${m.agentState}${RESET}`,
+      'agent-state': `⚙️ ${getAgentStateColor(m.agentState)}${BOLD}${m.agentStateLabel}${RESET}`,
       'tool-confirmation': `🔔 ${getToolConfirmColor(m.toolConfirmPending)}${BOLD}${m.toolConfirmPending ? '等待确认' : '已就绪'}${RESET}`,
       'pending-input': `📥 ${getColorByCount(m.pendingInputCount)}${BOLD}${m.pendingInputCount}${RESET} 队列`,
       'background-tasks': `🔄 ${getColorByCount(m.backgroundTasksCount)}${BOLD}${m.backgroundTasksCount}${RESET} 后台`,
@@ -1034,7 +1068,7 @@ function buildI18nDict(lang, m) {
     }
   };
   const normLang = normalizeLanguage(lang);
-  return dicts[normLang] || dicts['zh-tw'];
+  return dicts[normLang] || dicts['zh-cn'] || dicts['zh-tw'];
 }
 
 function renderStatusLine(footerItems, activeDict, termWidth) {
@@ -1085,9 +1119,7 @@ async function main() {
     const settings = await getSettingsAsync(meta);
     const termWidth = Math.max(40, (meta?.terminal_width || process.stdout.columns || 80) - 1);
     
-    let fallbackModel = 'Gemini 3.5 Flash (High)';
-    if (meta?.model?.display_name) fallbackModel = meta.model.display_name;
-    else if (meta?.model?.id) fallbackModel = meta.model.id;
+    let fallbackModel = meta?.model?.display_name || meta?.model?.id || settings?.model || 'Gemini 3.8 Flash (High)';
     
     // 退讓模式
     if (!settings?.ui?.footer?.items) {
@@ -1149,9 +1181,7 @@ async function main() {
       await fs.writeFile(join(projectLogDir, 'hook_error.log'), `[${new Date().toISOString()}] ${err.stack || err.message}\n`, { encoding: 'utf8', flag: 'a' });
     } catch (e) {}
     
-    let fallbackModel = 'Gemini 3.5 Flash (High)';
-    if (meta?.model?.display_name) fallbackModel = meta.model.display_name;
-    else if (meta?.model?.id) fallbackModel = meta.model.id;
+    let fallbackModel = meta?.model?.display_name || meta?.model?.id || 'Gemini 3.8 Flash (High)';
     console.log(`? for shortcuts | ${fallbackModel}`);
   }
   process.exit(0);
