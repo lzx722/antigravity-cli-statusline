@@ -56,7 +56,7 @@ Windows 平台的 位元組順序記號（BOM）鐵則、`sh.exe` 越獄、`csc.
 ## 🌐 語言鎖定規則（Locale Locking — 全域強制）
 
 > [!CAUTION]
-> **使用者在步驟 1 一旦選定語系（`zh-tw` / `us` / `jp`），人工智慧（AI）代理在本次執行的剩餘所有對話輸出，都必須使用該語言。**
+> **使用者在步驟 1 一旦選定語系（`zh-tw` / `zh-cn` / `us` / `jp`），人工智慧（AI）代理在本次執行的剩餘所有對話輸出，都必須使用該語言。**
 
 **為什麼必須鎖定**：使用者選擇英文（us）或日文（jp）的前提是「他可能不懂中文」，反之亦然。若中間穿插任何非所選語系的訊息，會破壞使用者體驗、甚至讓使用者讀不懂關鍵警告而誤判決策。**這也是為什麼語系選擇必須是第一步**——所有後續訊息（包括 Node.js 預檢的缺失警告）才能用使用者看得懂的語言呈現。
 
@@ -119,8 +119,9 @@ Windows 平台的 位元組順序記號（BOM）鐵則、`sh.exe` 越獄、`csc.
   1. **向使用者發出明確警告（以所選語系撰寫）**，說明缺少 Node.js 將導致：
      - CLI 底部狀態列**完全空白**，不會顯示 any 指標
      - `agy` 命令列介面（CLI）會反覆記錄 `statusline: command failed: exit status 127 (stderr: sh: node: command not found)`，連續失敗 30 次後自動停用 statusline
-  2. **呼叫 `ask_question` 詢問使用者是否繼續**（問卷 `question`、`options`、`toolSummary`、`toolAction` 全部以所選語系撰寫，以下範例為 `zh-tw` 版本）：
+  2. **呼叫 `ask_question` 詢問使用者是否繼續**（問卷 `question`、`options`、`toolSummary`、`toolAction` 全部以所選語系撰寫）：
 
+**zh-tw 範例**：
 ```json
 {
   "questions": [
@@ -135,6 +136,24 @@ Windows 平台的 位元組順序記號（BOM）鐵則、`sh.exe` 越獄、`csc.
   ],
   "toolSummary": "Node 環境檢查",
   "toolAction": "確認 Node 安裝"
+}
+```
+
+**zh-cn 範例**：
+```json
+{
+  "questions": [
+    {
+      "question": "⚠️ 检测到系统未安装 Node.js。\n\n状态栏挂钩（Hook）需要 Node.js 才能运作，缺少 Node.js 将导致命令行界面（CLI）底部状态栏完全空白且自动停用。\n\n建议先安装 Node.js（例如：brew install node），再重新运行本技能。\n\n是否仍要继续设置？（配置文件会正确写入，但状态栏在安装 Node.js 前不会显示）",
+      "options": [
+        "(Recommended) 中断，我先去安装 Node.js",
+        "继续设置（安装 Node.js 后状态栏会自动生效）"
+      ],
+      "is_multi_select": false
+    }
+  ],
+  "toolSummary": "Node 环境检查",
+  "toolAction": "确认 Node 安装"
 }
 ```
 
@@ -185,7 +204,9 @@ Windows 平台的 位元組順序記號（BOM）鐵則、`sh.exe` 越獄、`csc.
 ### 步驟 4：第三階段問卷（手動排序與最終篩選）
 
 1. 將**步驟 3 中使用者勾選的指標**按順序整理出來，標上數字編號（如 `1. 目前使用的人工智慧（AI）模型名稱（model-name）`），每項以 `\n` 分隔。
-2. 呼叫 `ask_question` 引導使用者進行排序：
+2. 呼叫 `ask_question` 引導使用者進行排序（問卷以所選語系呈現）：
+
+   **zh-tw 範例**：
    ```json
    {
      "questions": [
@@ -200,6 +221,24 @@ Windows 平台的 位元組順序記號（BOM）鐵則、`sh.exe` 越獄、`csc.
      ],
      "toolSummary": "排序設定",
      "toolAction": "詢問顯示順序"
+   }
+   ```
+
+   **zh-cn 範例**：
+   ```json
+   {
+     "questions": [
+       {
+         "question": "请设置状态栏显示顺序。\n\n目前已选取：\n1. 当前使用的人工智能（AI）模型名称（model-name）\n2. 账号五小时可用额度百分比（quota）\n3. 当前对话已消耗的上下文（Context）用量比例（context-used）\n\n请在下方输入框“Write-in...”中输入以逗号分隔的数字序号或英文标识码（如：2, 1, context-used）。可以使用 `n` 来强制换行。未填写的指标将不予显示。",
+         "options": [
+           "(Recommended) 跳过，使用原勾选顺序启用全部指标",
+           "手动排序（请在下方“Write-in...”栏位中填写）"
+         ],
+         "is_multi_select": false
+       }
+     ],
+     "toolSummary": "排序设置",
+     "toolAction": "询问显示顺序"
    }
    ```
 3. 取得使用者的排序輸入（`order`）。
