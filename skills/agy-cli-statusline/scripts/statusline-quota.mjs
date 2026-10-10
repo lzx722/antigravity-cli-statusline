@@ -60,6 +60,13 @@ function getModeColor(mode) {
   return BLUE;
 }
 
+function renderProgressBar(pct, color, length = 6) {
+  const validPct = Math.min(100, Math.max(0, isNaN(pct) ? 0 : pct));
+  const filled = Math.min(length, Math.max(0, Math.round((validPct / 100) * length)));
+  const empty = length - filled;
+  return `${GRAY}[${RESET}${color}${'█'.repeat(filled)}${GRAY}${'░'.repeat(empty)}${RESET}${GRAY}]${RESET}`;
+}
+
 function stripAnsi(str) {
   return str.replace(/[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g, '');
 }
@@ -634,18 +641,21 @@ async function extractMetricsAsync(meta, lang, fallbackModel, cache, cachedAccou
   const quotaPct = quotaInfo.remaining_percentage;
   const quotaColor = getColorByPercentage(quotaPct);
   const quotaVal = `${Math.round(quotaPct)}%`;
+  const quotaBar = renderProgressBar(quotaPct, quotaColor, 6);
   const countdownVal = quotaInfo.refreshes_in || noneStr;
 
   // Weekly Quota
   const weeklyPct = weeklyInfo.remaining_percentage;
   const weeklyQuotaColor = getColorByPercentage(weeklyPct);
   const weeklyQuotaVal = `${Math.round(weeklyPct)}%`;
+  const weeklyQuotaBar = renderProgressBar(weeklyPct, weeklyQuotaColor, 6);
   const weeklyCountdownVal = weeklyInfo.refreshes_in || noneStr;
 
   // Context
   const remainCtx = Math.max(0, 100 - contextInfo.usedPctNum);
   const contextColor = getColorByPercentage(remainCtx);
   const usedPct = `${contextInfo.usedPctNum.toFixed(1)}%`;
+  const contextBar = renderProgressBar(contextInfo.usedPctNum, contextColor, 6);
   const tokenCount = `${contextColor}${formatTokens(contextInfo.totalInput)}${RESET} / ${formatTokens(contextInfo.contextSize)}`;
 
   const projectPath = (typeof meta?.project?.path === 'string' && meta.project.path) ? meta.project.path : process.cwd();
@@ -839,12 +849,12 @@ async function extractMetricsAsync(meta, lang, fallbackModel, cache, cachedAccou
   const mode = modeVal;
 
   return {
-    fallbackModel, quotaColor, quotaVal, contextColor, usedPct, memUsage, tokenCount,
+    fallbackModel, quotaColor, quotaVal, quotaBar, contextColor, usedPct, contextBar, memUsage, tokenCount,
     countdownVal, gitBranch, projectName, projectFullPath, planTier, accountEmail,
     agentState, toolConfirmPending, pendingInputCount, backgroundTasksCount, subagentsCount,
     artifactsCount, vcsDirtyFlag, vcsDirtyGlyph, vcsDirtyLabel, vcsType, sandboxEnabled,
     sandboxAllowNet, sandboxStatusVal, cliVersion, conversationIdShort, agentProfileName,
-    weeklyQuotaColor, weeklyQuotaVal, weeklyCountdownVal, mode
+    weeklyQuotaColor, weeklyQuotaVal, weeklyQuotaBar, weeklyCountdownVal, mode
   };
 }
 
@@ -879,32 +889,36 @@ function buildI18nDict(lang, m) {
       'mode': `${WHITE}模式:${RESET} ${getModeColor(m.mode)}${BOLD}${m.mode}${RESET}`
     },
     'zh-cn': {
-      'model-name': `${WHITE}模型:${RESET} ${getModelColor(m.fallbackModel)}${BOLD}${m.fallbackModel}${RESET}`,
-      'quota': `${WHITE}小时可用:${RESET} ${m.quotaColor}${BOLD}${m.quotaVal}${RESET}`,
-      'context-used': `${WHITE}上下文用量:${RESET} ${m.contextColor}${BOLD}${m.usedPct}${RESET}`,
-      'memory-usage': `${WHITE}内存:${RESET} ${BLUE}${BOLD}${m.memUsage}${RESET}`,
-      'token-count': `${WHITE}令牌数:${RESET} ${m.tokenCount}`,
-      'quota-reset-countdown': `${WHITE}小时倒计时:${RESET} ${BLUE}${BOLD}${m.countdownVal}${RESET}`,
-      'quota-weekly': `${WHITE}每周可用:${RESET} ${m.weeklyQuotaColor}${BOLD}${m.weeklyQuotaVal}${RESET}`,
-      'quota-weekly-countdown': `${WHITE}每周倒计时:${RESET} ${BLUE}${BOLD}${m.weeklyCountdownVal}${RESET}`,
-      'git-branch': `${WHITE}Git: ${BOLD}${m.gitBranch}${RESET}`,
-      'project-path': `${WHITE}项目: ${BOLD}${m.projectName}${RESET}`,
-      'project-full-path': `${WHITE}完整路径: ${BOLD}${m.projectFullPath}${RESET}`,
-      'plan-tier': `${WHITE}订阅计划: ${BOLD}${m.planTier}${RESET}`,
-      'account-email': `${WHITE}账号: ${BOLD}${m.accountEmail}${RESET}`,
-      'agent-state': `${WHITE}代理状态:${RESET} ${getAgentStateColor(m.agentState)}${BOLD}${m.agentState}${RESET}`,
-      'tool-confirmation': `${WHITE}工具待确认:${RESET} ${getToolConfirmColor(m.toolConfirmPending)}${BOLD}${m.toolConfirmPending ? '在等你' : '都好了'}${RESET}`,
-      'pending-input': `${WHITE}待处理输入:${RESET} ${getColorByCount(m.pendingInputCount)}${BOLD}${m.pendingInputCount}${RESET}`,
-      'background-tasks': `${WHITE}后台任务:${RESET} ${getColorByCount(m.backgroundTasksCount)}${BOLD}${m.backgroundTasksCount}${RESET}`,
-      'subagents': `${WHITE}子代理:${RESET} ${getColorByCount(m.subagentsCount)}${BOLD}${m.subagentsCount}${RESET}`,
-      'artifacts': `${WHITE}产出文件数: ${BOLD}${m.artifactsCount}${RESET}`,
-      'vcs-dirty': `${WHITE}工作区状态:${RESET} ${getVcsDirtyColor(m.vcsDirtyFlag)}${BOLD}${m.vcsDirtyGlyph} ${m.vcsDirtyLabel}${RESET}`,
-      'vcs-type': `${WHITE}VCS类型: ${BOLD}${m.vcsType}${RESET}`,
-      'sandbox-status': `${WHITE}沙箱状态:${RESET} ${getSandboxColor(m.sandboxEnabled, m.sandboxAllowNet)}${BOLD}${m.sandboxStatusVal}${RESET}`,
-      'cli-version': `${WHITE}CLI版本: ${BOLD}${m.cliVersion}${RESET}`,
-      'conversation-id': `${WHITE}对话ID: ${BOLD}${m.conversationIdShort}${RESET}`,
-      'agent-profile': `${WHITE}代理角色:${RESET} ${BLUE}${BOLD}${m.agentProfileName}${RESET}`,
-      'mode': `${WHITE}模式:${RESET} ${getModeColor(m.mode)}${BOLD}${m.mode}${RESET}`
+      'model-name': `🤖 ${getModelColor(m.fallbackModel)}${BOLD}${m.fallbackModel}${RESET}`,
+      'quota': `⚡ ${m.quotaBar} ${m.quotaColor}${BOLD}${m.quotaVal}${RESET}`,
+      'quota-reset-countdown': m.countdownVal && m.countdownVal !== '无' && m.countdownVal !== 'N/A'
+        ? `⚡ ${m.quotaBar} ${m.quotaColor}${BOLD}${m.quotaVal}${RESET}（⏳${m.countdownVal}）`
+        : `⚡ ${m.quotaBar} ${m.quotaColor}${BOLD}${m.quotaVal}${RESET}`,
+      'quota-weekly': `📅 ${m.weeklyQuotaBar} ${m.weeklyQuotaColor}${BOLD}${m.weeklyQuotaVal}${RESET}`,
+      'quota-weekly-countdown': m.weeklyCountdownVal && m.weeklyCountdownVal !== '无' && m.weeklyCountdownVal !== 'N/A'
+        ? `📅 ${m.weeklyQuotaBar} ${m.weeklyQuotaColor}${BOLD}${m.weeklyQuotaVal}${RESET}（⏳${m.weeklyCountdownVal}）`
+        : `📅 ${m.weeklyQuotaBar} ${m.weeklyQuotaColor}${BOLD}${m.weeklyQuotaVal}${RESET}`,
+      'context-used': `📚 ${m.contextBar} ${m.contextColor}${BOLD}${m.usedPct}${RESET}`,
+      'token-count': `🪙 ${m.tokenCount}`,
+      'memory-usage': `💻 ${BLUE}${BOLD}${m.memUsage}${RESET}`,
+      'git-branch': `🌿 ${BOLD}${m.gitBranch}${RESET}`,
+      'vcs-dirty': `📝 ${getVcsDirtyColor(m.vcsDirtyFlag)}${BOLD}${m.vcsDirtyGlyph} ${m.vcsDirtyLabel}${RESET}`,
+      'vcs-type': `🗂️ ${BOLD}${m.vcsType}${RESET}`,
+      'project-path': `📁 ${BOLD}${m.projectName}${RESET}`,
+      'project-full-path': `📁 ${BOLD}${m.projectFullPath}${RESET}`,
+      'plan-tier': `👑 ${BOLD}${m.planTier}${RESET}`,
+      'account-email': `👤 ${BOLD}${m.accountEmail}${RESET}`,
+      'agent-profile': `🎭 ${BLUE}${BOLD}${m.agentProfileName} 角色${RESET}`,
+      'agent-state': `⚙️ ${getAgentStateColor(m.agentState)}${BOLD}${m.agentState}${RESET}`,
+      'tool-confirmation': `🔔 ${getToolConfirmColor(m.toolConfirmPending)}${BOLD}${m.toolConfirmPending ? '等待确认' : '已就绪'}${RESET}`,
+      'pending-input': `📥 ${getColorByCount(m.pendingInputCount)}${BOLD}${m.pendingInputCount}${RESET} 队列`,
+      'background-tasks': `🔄 ${getColorByCount(m.backgroundTasksCount)}${BOLD}${m.backgroundTasksCount}${RESET} 后台`,
+      'subagents': `👥 ${getColorByCount(m.subagentsCount)}${BOLD}${m.subagentsCount}${RESET} 子代理`,
+      'artifacts': `📦 ${BOLD}${m.artifactsCount}${RESET} 工件`,
+      'sandbox-status': `🛡️ ${getSandboxColor(m.sandboxEnabled, m.sandboxAllowNet)}${BOLD}${m.sandboxStatusVal}${RESET}`,
+      'cli-version': `🏷️ ${BOLD}${m.cliVersion}${RESET}`,
+      'conversation-id': `💬 ${BOLD}${m.conversationIdShort}${RESET}`,
+      'mode': `🎯 ${getModeColor(m.mode)}${BOLD}${m.mode} 模式${RESET}`
     },
     'us': {
       'model-name': `${WHITE}Model:${RESET} ${getModelColor(m.fallbackModel)}${BOLD}${m.fallbackModel}${RESET}`,
