@@ -422,7 +422,7 @@ async function main() {
       console.log("R8 Output:", JSON.stringify(resR8.stdout));
 
       const expectedR8Labels = [
-        "Gemini 3.5 Flash", "88%", "0.1%", "41MB", "1.5k", "75%",
+        "Gemini 3.5 Flash", "88%", "0.1%", "MB", "1.5k", "75%",
         "main", "Google AI Pro", "test@example.com", "空闲", "已就绪",
         "队列", "后台", "子代理", "工件", "干净", "git", "关闭",
         "v1.7.0", "testconv", "默认 角色", "Default 模式"

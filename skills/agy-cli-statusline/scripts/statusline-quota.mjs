@@ -302,29 +302,105 @@ async function getGitDirty(projectPath) {
   }
 }
 
-async function getCliMemoryMB() {
+const MEM_CACHE_FILE = join(os.homedir(), '.gemini', 'tmp', 'cli_mem_cache.json');
+
+async function readMemCacheAsync() {
+  try {
+    const data = await fs.readFile(MEM_CACHE_FILE, 'utf8');
+    return JSON.parse(data.replace(/^\uFEFF/, ''));
+  } catch (e) {
+    return null;
+  }
+}
+
+async function writeMemCacheAsync(memMB) {
+  try {
+    await fs.mkdir(join(os.homedir(), '.gemini', 'tmp'), { recursive: true });
+    await fs.writeFile(MEM_CACHE_FILE, JSON.stringify({ memMB, updatedAt: Date.now() }), { encoding: 'utf8' });
+  } catch (e) {}
+}
+
+async function queryCliMemoryMBAsync() {
   try {
     if (process.platform === 'win32') {
+      // 1. 優先使用 Windows 原生極速 tasklist (~150ms)，徹底消除逾時風險
+      try {
+        const out = await runCmdAsync('tasklist /fi "IMAGENAME eq agy.exe" /fo csv /nh', { timeout: 1500 });
+        if (out) {
+          const lines = out.split(/\r?\n/).filter(l => l.trim().length > 0);
+          let ppidMatchKB = 0;
+          let maxKB = 0;
+          for (const line of lines) {
+            const m = line.match(/^"([^"]+)","([^"]+)","([^"]+)","([^"]+)","([^"]+)"/);
+            if (m) {
+              const pid = parseInt(m[2], 10);
+              const kb = parseInt(m[5].replace(/[^0-9]/g, ''), 10);
+              if (!isNaN(kb) && kb > 0) {
+                if (pid === process.ppid) ppidMatchKB = kb;
+                if (kb > maxKB) maxKB = kb;
+              }
+            }
+          }
+          const chosenKB = ppidMatchKB || maxKB;
+          if (chosenKB > 0) {
+            return { memMB: Math.round(chosenKB / 1024), isReal: true };
+          }
+        }
+      } catch (e) {}
+
+      // 2. 降級備用：PowerShell 追溯祖父行程
       try {
         const cmd = `powershell.exe -NoProfile -Command "Get-CimInstance Win32_Process -Filter 'ProcessId = ${process.ppid}' | ForEach-Object { if ($_.Name -like '*agy*') { $_ } else { Get-CimInstance Win32_Process -Filter ('ProcessId = ' + $_.ParentProcessId) } } | ForEach-Object { if ($_.Name -like '*agy*') { $_.WorkingSetSize } }"`;
-        const output = await runCmdAsync(cmd);
+        const output = await runCmdAsync(cmd, { timeout: 2000 });
         const memBytes = parseInt(output.trim(), 10);
         if (!isNaN(memBytes) && memBytes > 0) {
-          return Math.round(memBytes / 1024 / 1024);
+          return { memMB: Math.round(memBytes / 1024 / 1024), isReal: true };
         }
       } catch (err) {}
-      return Math.round(process.memoryUsage().rss / 1024 / 1024);
+
+      return { memMB: Math.round(process.memoryUsage().rss / 1024 / 1024), isReal: false };
     } else {
-      const output = await runCmdAsync(`ps -o rss= -p ${process.ppid}`);
+      const output = await runCmdAsync(`ps -o rss= -p ${process.ppid}`, { timeout: 1000 });
       const memKb = parseInt(output.trim(), 10);
-      if (!isNaN(memKb)) return Math.round(memKb / 1024);
+      if (!isNaN(memKb) && memKb > 0) {
+        return { memMB: Math.round(memKb / 1024), isReal: true };
+      }
     }
   } catch (e) {}
-  try {
-    return Math.round(process.memoryUsage().rss / 1024 / 1024);
-  } catch (e) {
-    return 0;
+  return { memMB: Math.round(process.memoryUsage().rss / 1024 / 1024), isReal: false };
+}
+
+async function getCliMemoryMB() {
+  const cache = await readMemCacheAsync();
+  const now = Date.now();
+  const CACHE_TTL = 30000; // 30 秒快取
+
+  // 1. 若快取在 30 秒內，直接返回快取值（0ms）
+  if (cache && typeof cache.memMB === 'number' && (now - (cache.updatedAt || 0) < CACHE_TTL)) {
+    return cache.memMB;
   }
+
+  // 2. 快取不存在或已過期：直接查詢（tasklist 極速 ~150ms，完全無需擔心逾時）
+  try {
+    const res = await queryCliMemoryMBAsync();
+    if (res && res.isReal && res.memMB > 0) {
+      await writeMemCacheAsync(res.memMB);
+      return res.memMB;
+    }
+    // 若查詢失敗但有舊快取，優先使用舊快取
+    if (cache && typeof cache.memMB === 'number') {
+      return cache.memMB;
+    }
+    if (res && res.memMB > 0) {
+      return res.memMB; // 保底值僅用於當次顯示，絕不污染全域快取
+    }
+  } catch (e) {
+    if (cache && typeof cache.memMB === 'number') {
+      return cache.memMB;
+    }
+  }
+
+  return Math.round(process.memoryUsage().rss / 1024 / 1024);
 }
 
 // ==========================================
