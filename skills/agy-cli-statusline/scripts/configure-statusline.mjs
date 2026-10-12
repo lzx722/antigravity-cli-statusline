@@ -285,6 +285,32 @@ function normalizeLanguage(l) {
   return norm;
 }
 
+/**
+ * 依平台產生最穩定的 statusLine 指令字串：
+ * - macOS / Linux：使用 Node.js 執行檔的絕對路徑（process.execPath）。
+ *   解決 NVM / Homebrew / fnm / asdf 環境下，non-interactive / non-login 的 sh -c
+ *   因 PATH 未包含 node 而導致 exit status 127 (sh: 1: node: not found) 的問題。
+ *   若路徑包含空白字元，以雙引號包裹。
+ * - Windows：使用裸命令 node 搭配雙引號包裹腳本絕對路徑。
+ *   Windows 系統中，Node.js 安裝程式與版本管理工具（nvm-windows、fnm 等）會將 node.exe 註冊到
+ *   系統/使用者環境變數（Windows 登錄檔 PATH），所有衍生行程（包含 cmd.exe）皆會繼承 PATH。
+ *   使用 node 裸命令能徹底避免 C:\Program Files\nodejs\node.exe 的空白字元引發的
+ *   cmd.exe /c 雙引號剝除陷阱（誤將 C:\Program 當成命令）。
+ *   腳本絕對路徑一律以雙引號包裹，可同時保障使用者路徑含空白（如 C:\Users\John Doe）能被正確解析，
+ *   並防止 Git Bash 等 POSIX sh.exe 誤將路徑反斜線 \ 視為跳脫字元剝除損毀。
+ */
+export function getStatusLineCommand(statuslineScriptPath, platform = process.platform, execPath = process.execPath) {
+  const cleanPath = statuslineScriptPath.replace(/^"(.*)"$/, '$1');
+  if (platform === 'win32') {
+    return `node "${cleanPath}"`;
+  } else {
+    const nodeBin = execPath.includes(' ') ? `"${execPath}"` : execPath;
+    const scriptArg = cleanPath.includes(' ') ? `"${cleanPath}"` : cleanPath;
+    return `${nodeBin} ${scriptArg}`;
+  }
+}
+
+export function configureStatusLine() {
 // 1. 解析命令列參數
 let lang = 'zh-tw';
 let selectedStr = '[]';
@@ -440,31 +466,6 @@ function readJsonWithBOMDefense(filePath) {
 
 function writeJsonAndVerifyNoBOM(filePath, data) {
   writeContentAndVerifyNoBOM(filePath, JSON.stringify(data, null, 2));
-}
-
-/**
- * 依平台產生最穩定的 statusLine 指令字串：
- * - macOS / Linux：使用 Node.js 執行檔的絕對路徑（process.execPath）。
- *   解決 NVM / Homebrew / fnm / asdf 環境下，non-interactive / non-login 的 sh -c
- *   因 PATH 未包含 node 而導致 exit status 127 (sh: 1: node: not found) 的問題。
- *   若路徑包含空白字元，以雙引號包裹。
- * - Windows：使用裸命令 node 搭配雙引號包裹腳本絕對路徑。
- *   Windows 系統中，Node.js 安裝程式與版本管理工具（nvm-windows、fnm 等）會將 node.exe 註冊到
- *   系統/使用者環境變數（Windows 登錄檔 PATH），所有衍生行程（包含 cmd.exe）皆會繼承 PATH。
- *   使用 node 裸命令能徹底避免 C:\Program Files\nodejs\node.exe 的空白字元引發的
- *   cmd.exe /c 雙引號剝除陷阱（誤將 C:\Program 當成命令）。
- *   腳本絕對路徑一律以雙引號包裹，可同時保障使用者路徑含空白（如 C:\Users\John Doe）能被正確解析，
- *   並防止 Git Bash 等 POSIX sh.exe 誤將路徑反斜線 \ 視為跳脫字元剝除損毀。
- */
-export function getStatusLineCommand(statuslineScriptPath, platform = process.platform, execPath = process.execPath) {
-  const cleanPath = statuslineScriptPath.replace(/^"(.*)"$/, '$1');
-  if (platform === 'win32') {
-    return `node "${cleanPath}"`;
-  } else {
-    const nodeBin = execPath.includes(' ') ? `"${execPath}"` : execPath;
-    const scriptArg = cleanPath.includes(' ') ? `"${cleanPath}"` : cleanPath;
-    return `${nodeBin} ${scriptArg}`;
-  }
 }
 
 function updateSettings(settingsPath) {
@@ -649,4 +650,14 @@ if (process.platform === 'win32') {
   }
 }
 
-console.log('設定成功完成！');
+  console.log('設定成功完成！');
+}
+
+const isDirectRun = process.argv[1] && (
+  path.resolve(process.argv[1]) === path.resolve(__filename) ||
+  fileURLToPath(import.meta.url) === path.resolve(process.argv[1])
+);
+
+if (isDirectRun) {
+  configureStatusLine();
+}
