@@ -59,15 +59,16 @@ Antigravity CLI（agy）讀取**三層**設定檔。AI 代理**必須同時更�
 
 ## 3. statusLine 物件結構（Windows）
 
-詳見 [windows.md §5](windows.md#5-settingsjson-中-windows-路徑跳脫範本)。Windows 上寫入裸命令 `node`（若掛鉤腳本路徑含空白則為腳本路徑加上雙引號）：
+詳見 [windows.md §5](windows.md#5-settingsjson-中-windows-路徑跳脫範本)。Windows 上寫入裸命令 `node`（無空格路徑不加引號以防 Go 轉義問題，含空格路徑則加上雙引號）：
 
 ```json
 "statusLine": {
   "enabled": true,
   "type": "command",
-  "command": "node \"<真實的使用者家目錄絕對路徑>\\.gemini\\antigravity-cli\\hooks\\statusline-quota.mjs\""
+  "command": "node <真實的使用者家目錄絕對路徑>\\.gemini\\antigravity-cli\\hooks\\statusline-quota.mjs"
 }
 ```
+（若家目錄路徑含空格，則為 `"command": "node \"<含空格之絕對路徑>\\.gemini\\antigravity-cli\\hooks\\statusline-quota.mjs\""`）
 
 > [!NOTE]
 > Windows 系統中，Node.js 官方安裝程式與版本管理工具（`nvm-windows`、`fnm`、`scoop`）皆會將 `node.exe` 登錄至系統/使用者環境變數（Windows 登錄檔 `PATH`），所有子行程（包含 `cmd.exe`）皆會繼承。

@@ -122,20 +122,21 @@ Get-CimInstance Win32_Process -Filter "Name like '%agy%'"
 2. **Git Bash sh.exe 反斜線跳脫陷阱**：若 Windows 機器裝有 Git for Windows 且 PATH 中包含其 `sh.exe`，POSIX Shell 會將反斜線 `\` 視為跳脫符號，路徑中的 `\n`（例如 `\nodejs` 或 `\new_folder`）會被轉換為換行字元（Newline），導致找不到檔案。
 3. **Windows 登錄檔 PATH 天然繼承**：不同於 macOS/Linux 下 NVM 為僅存在於互動式 Shell 的函式，Windows 下無論是官方 MSI、`nvm-windows`、`fnm` 或 `scoop`，皆會將 `node.exe` 寫入 Windows 系統/使用者環境變數（Windows 登錄檔 `PATH`）。所有父行程衍生的子行程（`cmd.exe`、`agy.exe`）皆會繼承完整 PATH。
 
-因此 Windows 平台上**使用裸命令 `node` 搭配雙引號包裹腳本絕對路徑為最健壯的黃金方案**。腳本絕對路徑一律以雙引號包裹：
-- **路徑空格防護**：使用者家目錄常包含空白（例如 `C:\Users\John Doe`），雙引號可確保路徑參數不被截斷。
-- **Git Bash 反斜線防護**：若 Windows 機器裝有 Git for Windows（PATH 中含 `sh.exe`），雙引號可防止 POSIX Shell 誤將反斜線 `\` 當作跳脫字元剝除損毀。
-- **免於引號剝除**：因為指令開頭為 `node `（第一個字元非雙引號），`cmd.exe /c` 絕對不會觸發最外層雙引號剝除規則，內部雙引號將完整保留傳入 `node`！
+因此 Windows 平台上**使用裸命令 `node` 搭配腳本絕對路徑為最健壯的黃金方案**：
+- **無空格路徑（絕大多數環境）**：直接以空格銜接，**絕對不要包裹雙引號**（例如 `node C:\Users\andy\.gemini\antigravity-cli\hooks\statusline-quota.mjs`）。若在無空格路徑外包裹雙引號，agy CLI 底層 Go 的 `os/exec` 轉義機制會在傳遞給 `node.exe` 時保留字面引號 `"`，導致 Node.js 判斷非絕對路徑並拼接當前工作目錄（如 `C:\Users\xxx\"C:\Users\xxx\...`），引發 `MODULE_NOT_FOUND` 報錯。
+- **含空格路徑**：以雙引號包裹腳本路徑（例如 `node "C:\Users\John Doe\..."`），防範參數空白截斷。
+- **免於引號剝除**：因為指令開頭為裸命令 `node `（第一個字元非雙引號），`cmd.exe /c` 絕對不會觸發最外層雙引號剝除規則！
 
-`statusLine` 物件的 `command` 欄位在 Windows 平台必須使用雙反斜線跳脫：
+`statusLine` 物件的 `command` 欄位在 Windows 平台（無空格環境）：
 
 ```json
 "statusLine": {
   "enabled": true,
   "type": "command",
-  "command": "node \"<真實的使用者家目錄絕對路徑>\\.gemini\\antigravity-cli\\hooks\\statusline-quota.mjs\""
+  "command": "node <真實的使用者家目錄絕對路徑>\\.gemini\\antigravity-cli\\hooks\\statusline-quota.mjs"
 }
 ```
+（若家目錄路徑包含空格，則寫入 `"command": "node \"<含空格之絕對路徑>\\.gemini\\antigravity-cli\\hooks\\statusline-quota.mjs\""`）
 
 `trusted_hooks.json` 中對應的 Windows 信任字串（必須包含精確命令，並同時追加單/雙反斜線、forward slash、引號與 `%USERPROFILE%` 變體以確保相容性）：
 

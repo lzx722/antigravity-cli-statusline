@@ -302,7 +302,7 @@ function normalizeLanguage(l) {
 export function getStatusLineCommand(statuslineScriptPath, platform = process.platform, execPath = process.execPath) {
   const cleanPath = statuslineScriptPath.replace(/^"(.*)"$/, '$1');
   if (platform === 'win32') {
-    return `node "${cleanPath}"`;
+    return cleanPath.includes(' ') ? `node "${cleanPath}"` : `node ${cleanPath}`;
   } else {
     const nodeBin = execPath.includes(' ') ? `"${execPath}"` : execPath;
     const scriptArg = cleanPath.includes(' ') ? `"${cleanPath}"` : cleanPath;

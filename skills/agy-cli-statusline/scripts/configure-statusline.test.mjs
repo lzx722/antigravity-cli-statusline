@@ -453,8 +453,13 @@ async function testCase5SimplifiedChineseConfig() {
     assert.strictEqual(globalSettings1.statusLine.type, 'command', 'statusLine.type 必須為 command');
     if (process.platform === 'win32') {
       assert.ok(globalSettings1.statusLine.command.startsWith('node '), 'Windows 平台必須使用 node 裸命令');
-      assert.ok(globalSettings1.statusLine.command.startsWith('node "'), 'Windows 平台必須以 node " 開頭以雙引號保護腳本路徑');
-      assert.ok(globalSettings1.statusLine.command.endsWith('.mjs"'), 'Windows 平台腳本路徑必須以雙引號結尾');
+      const scriptPart = globalSettings1.statusLine.command.slice(5);
+      if (scriptPart.includes(' ')) {
+        assert.ok(scriptPart.startsWith('"') && scriptPart.endsWith('"'), 'Windows 平台含空格腳本路徑必須以雙引號包裹');
+      } else {
+        assert.ok(!scriptPart.includes('"'), 'Windows 平台無空格腳本路徑不得加雙引號');
+        assert.ok(globalSettings1.statusLine.command.endsWith('.mjs'), 'Windows 平台腳本路徑必須以 .mjs 結尾');
+      }
     } else {
       const expectedBin = process.execPath.includes(' ') ? `"${process.execPath}"` : process.execPath;
       assert.ok(globalSettings1.statusLine.command.startsWith(expectedBin), 'macOS / Linux 平台必須使用 process.execPath');
@@ -572,12 +577,12 @@ async function testCase7DirectGetStatusLineCommandMatrix() {
   console.log('\n--- 執行測試情境 7：直接驗證 getStatusLineCommand 跨平台矩陣邏輯 ---');
 
   // 1. Windows (win32) 平台驗證
-  // 1a. 無空格路徑：必須使用 node 裸命令且以雙引號包裹路徑（防範 Git Bash POSIX sh 反斜線剝除）
+  // 1a. 無空格路徑：必須使用 node 裸命令且不加引號（防範 Go 內部轉義為 \" 導致 Node.js 判定為相對路徑而報 MODULE_NOT_FOUND）
   const winCmd1 = getStatusLineCommand('C:\\Users\\andy\\.gemini\\hooks\\statusline-quota.mjs', 'win32');
   assert.strictEqual(
     winCmd1,
-    'node "C:\\Users\\andy\\.gemini\\hooks\\statusline-quota.mjs"',
-    'Windows 無空格路徑必須為 node 裸命令搭配雙引號'
+    'node C:\\Users\\andy\\.gemini\\hooks\\statusline-quota.mjs',
+    'Windows 無空格路徑必須為 node 裸命令且不加雙引號'
   );
 
   // 1b. 含空格路徑：必須使用 node 裸命令且以雙引號包裹路徑（防範路徑空白被截斷）
@@ -588,12 +593,20 @@ async function testCase7DirectGetStatusLineCommandMatrix() {
     'Windows 含空格路徑必須為 node 裸命令搭配雙引號'
   );
 
-  // 1c. 傳入已含雙引號之路徑：必須自動解除外層雙引號後標準化包裹，不可產生雙重引號 node ""...""
+  // 1c. 傳入已含雙引號之路徑（含空格）：必須自動解除外層雙引號後標準化包裹，不可產生雙重引號 node ""...""
   const winCmd3 = getStatusLineCommand('"C:\\Users\\John Doe\\.gemini\\hooks\\statusline-quota.mjs"', 'win32');
   assert.strictEqual(
     winCmd3,
     'node "C:\\Users\\John Doe\\.gemini\\hooks\\statusline-quota.mjs"',
     'Windows 既有雙引號路徑必須正確規範化，不可產生雙重引號'
+  );
+
+  // 1d. 傳入已含雙引號之路徑（無空格）：必須解除雙引號且不重新加引號
+  const winCmd4 = getStatusLineCommand('"C:\\Users\\andy\\.gemini\\hooks\\statusline-quota.mjs"', 'win32');
+  assert.strictEqual(
+    winCmd4,
+    'node C:\\Users\\andy\\.gemini\\hooks\\statusline-quota.mjs',
+    'Windows 既有無空格雙引號路徑必須移除引號'
   );
 
   // 2. macOS (darwin) 平台驗證
